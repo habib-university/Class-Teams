@@ -170,7 +170,7 @@ def main():
         elif score == max_score:
             best_pairs.add(pairs)
 
-    print(f'Got {len(best_pairs)} pairings with score of {max_score}:')
+    print(f'\nGot {len(best_pairs)} pairings with score of {max_score}:')
     color_print(best_pairs)
 
 if __name__ == '__main__':
