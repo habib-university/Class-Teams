@@ -17,6 +17,11 @@ add_red(students, <src_student>, [<dst_student_1>, <dst_student_2>, ... , <dst_s
 
 The program outputs a _goodness score_ between 0 (worst) and 1 (best) of the computed pairings. The best pairing is one where all vertex pairs are as per the students' preferences. As it is usually impossible to meet all preferences, a score of 0.6 or above is good enough.
 
+## Requirements
+
+- To run the program, you need at least python 3.6 becasuse of the use of `f-string`s.
+- The program also makes use of the `colorama` package which may not be installed by default. It was not for me. Run `pip install colorama` or `pip3 install colorama` depending on your platform.
+
 ## How it Works
 
 The problem is modeled as a directed graph. Every student is a node. If student A wants to work with student B, B is considered A's _friend_ and the graph contains a green edge from A to B. If student X does not want to work with student Y, Y is considered X's _enemy_ and the graph contains a red edge from X to Y. It is not rare to end up with a vertex pair with a green edge one way and a red edge the other way! As the red and green degree of each vertex is typically small, few vertex pairs are connected.
