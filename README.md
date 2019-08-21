@@ -45,8 +45,8 @@ This is probably a variant of the _vertex cover_ problem. If so, a more efficien
 The program fails or crashes? You have found an error? You want to know more? This documentation sucks?
 
 For the above or any other issues, please report
-- to <wsaleem@gmail.com> 
-- to <waqar.saleem@sse.habib.edu.pk>
-- by seeing me in C-103
-- by calling me at 5223
+- to <wsaleem@gmail.com>, or
+- to <waqar.saleem@sse.habib.edu.pk>, or
+- by seeing me in C-103, or
+- by calling me at 5223, or
 - by fixing it yourself and submitting a Pull Request :)
