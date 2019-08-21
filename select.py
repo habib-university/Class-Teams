@@ -1,5 +1,5 @@
 from colorama import Fore, Style
-import random
+import random, os
 
 class Student:
     def __init__(self, name):
@@ -40,17 +40,17 @@ def add_red(students, src_name, dst_names):
 def is_valid_pair(s1, s2):
     return (s1 != s2) and not s1.paired and not s2.paired and (s1 not in s2.red) and (s2 not in s1.red)
 
-def find_match(src, students, max_tries = 10):
-    if students:
+def find_match(src, candidates, max_tries = 10):
+    if candidates:
         for _ in range(max_tries):
-            dst = random.sample(students, 1)[0]
+            dst = random.sample(candidates, 1)[0]
             if is_valid_pair(src, dst):
                 return dst
 
 def get_pairs(students, max_tries = 100):
     students = students.copy()
     pairs = []
-    score = tries = 0
+    tries = 0
     while students and tries < max_tries:
         src = random.sample(students, 1)[0]
         # print(f'{tries}. Finding match for {src}')
@@ -84,6 +84,22 @@ def get_match_score(pairs):
         if dst in src.green:
             score += 1
     return score / (2 * len(pairs))
+
+def cls():
+    os.system('cls' if os.name=='nt' else 'clear')
+
+def showProgressBar(currentScore, total):
+    stepSize = total/10
+    number_dec = str(currentScore/stepSize-int(currentScore/stepSize))[1:]
+    if(number_dec == ".0"):
+      cls()
+      for i in range (int(currentScore/stepSize)):
+          print(".", end ="")
+      print("")
+      for i in range (10-int(currentScore/stepSize)):
+          print(" ", end ="")
+      print("|", end ="")
+    
 
 def color_print(pairings):
     for pairing in pairings:
@@ -135,26 +151,24 @@ def init_students():
 ### WORKS WELL ON ITS OWN. EDIT IF YOU KNOW WHAT YOU ARE DOING. 
 def main():
     students = init_students()
-    print("initiated students", students)
     pairs = []
     while not pairs:
-      reset_students(students)
-      pairs = get_pairs(students)
+        reset_students(students)
+        pairs = get_pairs(students)
     max_score = get_match_score(pairs)
     best_pairs = {pairs}
     for _ in range(1000):
-      if((_%100)==0):
-        print(".")
-      pairs = []
-      while not pairs:
-          reset_students(students)
-          pairs = get_pairs(students)
-      score = get_match_score(pairs)
-      if score > max_score:
-          best_pairs = {pairs}
-          max_score = score
-      elif score == max_score:
-          best_pairs.add(pairs)
+        showProgressBar(_, 1000)
+        pairs = []
+        while not pairs:
+            reset_students(students)
+            pairs = get_pairs(students)
+        score = get_match_score(pairs)
+        if score > max_score:
+            best_pairs = {pairs}
+            max_score = score
+        elif score == max_score:
+            best_pairs.add(pairs)
 
     print(f'Got {len(best_pairs)} pairings with score of {max_score}:')
     color_print(best_pairs)
