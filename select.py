@@ -40,8 +40,8 @@ def add_red(students, src_name, dst_names):
 def is_valid_pair(s1, s2):
     return (s1 != s2) and not s1.paired and not s2.paired and (s1 not in s2.red) and (s2 not in s1.red)
 
-def find_match(src, candidates, max_tries = 10):
-    if candidates:
+def find_match(src, students, max_tries = 10):
+    if students:
         for _ in range(max_tries):
             dst = random.sample(students, 1)[0]
             if is_valid_pair(src, dst):
@@ -135,23 +135,26 @@ def init_students():
 ### WORKS WELL ON ITS OWN. EDIT IF YOU KNOW WHAT YOU ARE DOING. 
 def main():
     students = init_students()
+    print("initiated students", students)
     pairs = []
     while not pairs:
-        reset_students(students)
-        pairs = get_pairs(students)
+      reset_students(students)
+      pairs = get_pairs(students)
     max_score = get_match_score(pairs)
     best_pairs = {pairs}
     for _ in range(1000):
-        pairs = []
-        while not pairs:
-            reset_students(students)
-            pairs = get_pairs(students)
-        score = get_match_score(pairs)
-        if score > max_score:
-            best_pairs = {pairs}
-            max_score = score
-        elif score == max_score:
-            best_pairs.add(pairs)
+      if((_%100)==0):
+        print(".")
+      pairs = []
+      while not pairs:
+          reset_students(students)
+          pairs = get_pairs(students)
+      score = get_match_score(pairs)
+      if score > max_score:
+          best_pairs = {pairs}
+          max_score = score
+      elif score == max_score:
+          best_pairs.add(pairs)
 
     print(f'Got {len(best_pairs)} pairings with score of {max_score}:')
     color_print(best_pairs)
