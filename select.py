@@ -144,7 +144,7 @@ def main():
     best_pairs = {pairs}
     for _ in range(1000):
       if((_%100)==0):
-        print(".")
+        print(".",end='')
       pairs = []
       while not pairs:
           reset_students(students)
@@ -156,7 +156,7 @@ def main():
       elif score == max_score:
           best_pairs.add(pairs)
 
-    print(f'Got {len(best_pairs)} pairings with score of {max_score}:')
+    print(f'\nGot {len(best_pairs)} pairings with score of {max_score}:')
     color_print(best_pairs)
 
 if __name__ == '__main__':
