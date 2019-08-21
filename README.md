@@ -24,11 +24,11 @@ The program outputs a _goodness score_ between 0 (worst) and 1 (best) of the com
 
 ## How it Works
 
-The problem is modeled as a directed graph. Every student is a node. If student A wants to work with student B, B is considered A's _friend_ and the graph contains a green edge from A to B. If student X does not want to work with student Y, Y is considered X's _enemy_ and the graph contains a red edge from X to Y. It is not rare to end up with a vertex pair with a green edge one way and a red edge the other way! As the red and green degree of each vertex is typically small, few vertex pairs are connected.
+The problem is modeled as a directed graph. Every student is a node. If student A wants to work with student B, B is considered A's _friend_ and the graph contains a green edge from A to B. If student X does not want to work with student Y, Y is considered X's _enemy_ and the graph contains a red edge from X to Y. It is not rare to end up with a vertex pair with a green edge one way and a red edge the other way! As the red and green degree of each vertex is typically small, few vertex pairs are directly connected.
 
-The program tries to partition the vertices into pairs such that no pair contains an enemy. It does so by randomly selecting a vertex as _source_ and selecting as _destination_ a friend for whom _source_ is not an enemy. If _destination_ is already part of another pair, a new _destination_ is selected. If no such selection is possible, _destination_ is selected from the vertices that are not connected to _source_. Once an acceptable _destination_ is found, _source_ and _destination_ are added as a pair to the existing set of pairs. The set of pairs is called a _pairing_. A pairing is scored as the number of friends that are paired in it.
+The program tries to partition the vertices into pairs such that no pair contains an enemy. It does so by randomly selecting an unpaired vertex as _source_ and selecting as _destination_ a friend for whom _source_ is not an enemy. If _destination_ is already part of another pair, a new _destination_ is selected. If no such selection is possible, _destination_ is selected from the unpaired vertices that are not directly connected to _source_. Once an acceptable _destination_ is found, the pair (_source_,  _destination_) is added to the existing set of pairs. The set of pairs is called a _pairing_. A pairing is scored in terms of the number of friends that are paired in it. A perfect pairing is one in which all pairs consist of friends.
 
-The above process is repeated several times to maximize the likelihood of a high scoring pairing.
+The above process is repeated several times to maximize the likelihood of a high scoring pairing. The highest scoring pairings (there may be multiple) are saved.
 
 ## Limitations
 
