@@ -1,5 +1,5 @@
 from colorama import Fore, Style
-import random, os
+import random, sys
 
 class Student:
     def __init__(self, name):
@@ -24,6 +24,23 @@ class Student:
         # less than operator for comparing instances.
         return self.name < other.name
 
+def startProgress(title):
+    global progress_x
+    sys.stdout.write(title + ": [")
+    sys.stdout.flush()
+    progress_x = 0
+
+def progress(x):
+    global progress_x
+    x = int(x * 40 // 100)
+    sys.stdout.write("#" * (x - progress_x))
+    sys.stdout.flush()
+    progress_x = x
+
+def endProgress():
+    sys.stdout.write("#" * (40 - progress_x) + "]\n")
+    sys.stdout.flush()
+    
 def find_student(students, key):
     return next(student for student in students if student.name == key)
 
@@ -85,21 +102,11 @@ def get_match_score(pairs):
             score += 1
     return score / (2 * len(pairs))
 
-def cls():
-    os.system('cls' if os.name=='nt' else 'clear')
-
 def showProgressBar(currentScore, total):
     stepSize = total/10
     number_dec = str(currentScore/stepSize-int(currentScore/stepSize))[1:]
     if(number_dec == ".0"):
-      cls()
-      for i in range (int(currentScore/stepSize)):
-          print(".", end ="")
-      print("")
-      for i in range (10-int(currentScore/stepSize)):
-          print(" ", end ="")
-      print("|", end ="")
-    
+        progress(((currentScore/total)*100))    
 
 def color_print(pairings):
     for pairing in pairings:
@@ -157,6 +164,7 @@ def main():
         pairs = get_pairs(students)
     max_score = get_match_score(pairs)
     best_pairs = {pairs}
+    startProgress("progress")
     for _ in range(1000):
         showProgressBar(_, 1000)
         pairs = []
@@ -170,8 +178,10 @@ def main():
         elif score == max_score:
             best_pairs.add(pairs)
 
+    endProgress()
     print(f'\nGot {len(best_pairs)} pairings with score of {max_score}:')
     color_print(best_pairs)
+    
 
 if __name__ == '__main__':
     main()
