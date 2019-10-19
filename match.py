@@ -125,35 +125,15 @@ def main():
     num_tries : int = 5000
     high_score : int = -1
     best_matching : [(str, str)] = []
-    while num_tries:
-        num_tries -= 1
+    startProgress("progress")
+    for _ in range(num_tries):
+        showProgressBar(_, num_tries)
         if (matching := get_pairs(preferences)) and \
            (score := get_matching_score(preferences, matching)) > high_score:
             high_score = score
             best_matching = matching
+    endProgress()
     print(f'{pretty_string(preferences, best_matching)}\n{high_score}')
-    # students = init_students()
-    # max_score = -1
-    # best_pairs = set()
-    # num_tries = 50000
-    # print(f'Pairing {len(students)} students in {num_tries} attempts.')
-    # startProgress("progress")
-    # for _ in range(num_tries):
-    #     showProgressBar(_, num_tries)
-    #     pairs = []
-    #     while not pairs:
-    #         pairs = get_pairs(students)
-    #         reset_students(students)
-    #     score = get_match_score(pairs)
-    #     if score > max_score:
-    #         best_pairs = {pairs}
-    #         max_score = score
-    #     elif score == max_score:
-    #         best_pairs.add(pairs)
-
-    # endProgress()
-    # print(f'\nGot {len(best_pairs)} pairings with score of {max_score}:')
-    # color_print(best_pairs)
     
 
 if __name__ == '__main__':
