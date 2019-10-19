@@ -3,6 +3,8 @@ import networkx as nx
 import random
 import sys
 
+############### PROGRESS BAR FUNCTIONS BEGIN
+
 def startProgress(title):
     global progress_x
     sys.stdout.write(title + ": [")
@@ -25,8 +27,10 @@ def showProgressBar(currentScore : int, total: int):
     number_dec = str(currentScore/stepSize-int(currentScore/stepSize))[1:]
     if(number_dec == ".0"):
         progress(((currentScore/total)*100))    
+
+############### PROGRESS BAR FUNCTIONS END
     
-def get_matching_score(G : nx.DiGraph, matching : [(str, str)]) -> float:
+def get_score_for_matching(G : nx.DiGraph, matching : [(str, str)]) -> float:
     score = sum((1 for src, dst in matching
                  if G.has_edge(src, dst) and G[src][dst]['pref']))
     score += sum((1 for src, dst in matching
@@ -139,7 +143,7 @@ def main():
     for _ in range(num_tries):
         showProgressBar(_, num_tries)
         if (matching := get_matching(preferences)) and \
-           (score := get_matching_score(preferences, matching)) > high_score:
+           (score := get_score_for_matching(preferences, matching)) > high_score:
             high_score = score
             best_matching = matching
     endProgress()
