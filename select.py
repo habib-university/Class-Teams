@@ -20,7 +20,7 @@ def endProgress():
     sys.stdout.write("#" * (40 - progress_x) + "]\n")
     sys.stdout.flush()
     
-def get_match_score(G, pairs):
+def get_matching_score(G, pairs):
     score = sum((1 for src, dst in pairs
                  if G.has_edge(src, dst) and G[src][dst]['pref']))
     score += sum((1 for src, dst in pairs
@@ -34,32 +34,25 @@ def showProgressBar(currentScore, total):
     if(number_dec == ".0"):
         progress(((currentScore/total)*100))    
 
-def color_print(pairings):
-    for pairing in pairings:
-        to_print = ''
-        for student_a, student_b in pairing:
-            to_print += '('
-            if student_b in student_a.green:
-                to_print += f'{Fore.GREEN}{student_a.name}{Style.RESET_ALL}'
-            elif student_b in student_a.red:
-                to_print += f'{Fore.RED}{student_a.name}{Style.RESET_ALL}'
-            else:
-                to_print += student_a.name
-            to_print += ', '
-            if student_a in student_b.green:
-                to_print += f'{Fore.GREEN}{student_b.name}{Style.RESET_ALL}'
-            elif student_a in student_b.red:
-                to_print += f'{Fore.RED}{student_b.name}{Style.RESET_ALL}'
-            else:
-                to_print += f'{student_b.name}'
-            to_print += ') '
-        print(to_print[:-1])        
+def pretty_string(G, matching):
+    def get_color_string(src : str, dst : str) -> str:
+        if not G.has_edge(src, dst):
+            return src
+        elif G[src][dst]['pref']:
+            return f'{Fore.GREEN}{src}{Style.RESET_ALL}'
+        else:
+            return f'{Fore.RED}{src}{Style.RESET_ALL}'
+        
+    matching = sorted([sorted(pair) for pair in matching])
+    to_print = [f'({get_color_string(src, dst)}, {get_color_string(dst, src)})'
+                for src, dst in matching]
+    return ', '.join(to_print)
 
-def get_pairs(preferences : nx.DiGraph) -> [(str, str)]:
+def get_pairs(preferences : nx.DiGraph) -> ([(str, str)], bool):
     '''Extract feasible pairs from preferences.'''
     import copy
     G = copy.deepcopy(preferences)
-    G.graph['matches'] = []
+    G.graph['matching'] = []
 
     def is_mismatch(src : str, dst : str) -> bool:
         return G.has_edge(dst, src) and not G[dst][src]['pref']
@@ -67,9 +60,9 @@ def get_pairs(preferences : nx.DiGraph) -> [(str, str)]:
     def add_match(src : str, candidates : [str]) -> bool:
         random.shuffle(candidates)
         for dst in candidates:
-            pair = (src, dst))
+            pair = (src, dst)
             if not is_mismatch(*pair):
-                G.graph['matches'].append(pair)
+                G.graph['matching'].append(pair)
                 G.remove_nodes_from(pair)
                 return True
         return False
@@ -80,11 +73,8 @@ def get_pairs(preferences : nx.DiGraph) -> [(str, str)]:
             continue
         non_neighbors = set(G.nodes()) - set(G.neighbors(src)) - {src}
         if not add_match(src, list(non_neighbors)):
-            print('Cannot match:', src)
-            print('Matches found so far:', *G.graph['matches'])
-            print('Still to match:', *G)
             return []
-    return G.graph['matches']
+    return G.graph['matching']
     
 def enter_data(preferences : nx.DiGraph) -> None:
     '''Populates the digraph with student preferences.'''
@@ -125,8 +115,16 @@ def enter_data(preferences : nx.DiGraph) -> None:
 def main():
     preferences = nx.DiGraph()
     enter_data(preferences)
-    if match := get_pairs(preferences):
-        print(get_match_score(preferences, match))
+    num_tries : int = 5000
+    high_score : int = -1
+    best_matching : [(str, str)] = []
+    while num_tries:
+        num_tries -= 1
+        if (matching := get_pairs(preferences)) and \
+           (score := get_matching_score(preferences, matching)) > high_score:
+            high_score = score
+            best_matching = matching
+    print(f'{pretty_string(preferences, best_matching)}\n{high_score}')
     # students = init_students()
     # max_score = -1
     # best_pairs = set()
