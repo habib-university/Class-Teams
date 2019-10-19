@@ -1,28 +1,7 @@
 from colorama import Fore, Style
-import random, sys
-
-class Student:
-    def __init__(self, name):
-        self.name = name
-        self.green = set()
-        self.red = set()
-        self.paired = False
-        
-    def __repr__(self):
-        return self.name
-
-    def __eq__(self, other):
-        if not isinstance(other, type(self)):
-            return False
-        return self.name == other.name
-    
-    def __hash__(self):
-        # makes instances hashable so they can be added to a dict or set.
-        return hash((self.name))
-
-    def __lt__(self, other):
-        # less than operator for comparing instances.
-        return self.name < other.name
+import networkx as nx
+import random
+import sys
 
 def startProgress(title):
     global progress_x
@@ -40,58 +19,6 @@ def progress(x):
 def endProgress():
     sys.stdout.write("#" * (40 - progress_x) + "]\n")
     sys.stdout.flush()
-    
-def find_student(students, key):
-    return next(student for student in students if student.name == key)
-
-def add_green(students, src_name, dst_names):
-    src = find_student(students, src_name)
-    dst_list = filter(lambda s: s.name in dst_names, students)
-    src.green.update(dst_list)
-
-def add_red(students, src_name, dst_names):
-    src = find_student(students, src_name)
-    dst_list = filter(lambda s: s.name in dst_names, students)
-    src.red.update(dst_list)
-
-def is_valid_pair(s1, s2):
-    return (s1 != s2) and not s1.paired and not s2.paired and (s1 not in s2.red) and (s2 not in s1.red)
-
-def find_match(src, candidates, max_tries = 10):
-    if candidates:
-        for _ in range(max_tries):
-            dst = random.sample(candidates, 1)[0]
-            if is_valid_pair(src, dst):
-                return dst
-
-def get_pairs(students, max_tries = 100):
-    students = students.copy()
-    pairs = []
-    tries = 0
-    while students and tries < max_tries:
-        src = random.sample(students, 1)[0]
-        # print(f'{tries}. Finding match for {src}')
-        dst = find_match(src, src.green)
-        if not dst:
-            dst = find_match(src, students)
-        if dst:
-            # print(f'Matched with {dst}')
-            pair = (src, dst)
-            src.paired = dst.paired = True
-            students.difference_update(pair)
-            pairs.append(pair)
-        # else:
-            # print("Couldn't match.")
-        tries += 1
-    if tries < max_tries:
-        # print(f'Found pairing: {pairs}')
-        pairs = [tuple(sorted(pair)) for pair in pairs]
-        pairs = tuple(sorted(pairs))
-        return pairs
-
-def reset_students(students):
-    for s in students:
-        s.paired = False
     
 def get_match_score(pairs):
     score = 0
@@ -129,58 +56,106 @@ def color_print(pairings):
             to_print += ') '
         print(to_print[:-1])        
 
-def init_students():
-    ### EDIT: Enter names of students in this list.
-    students = [chr(ord('B')+i) for i in range(8)]
-    
-    ### DO NOT EDIT
-    students = {Student(name) for name in students}
+def get_pairs(preferences : nx.DiGraph) -> [(str, str)]:
+    '''Extract feasible pairs from preferences.'''
+    import copy
+    G = copy.deepcopy(preferences)
+    G.graph['matches'] = []
 
-    ### EDIT: Add red and green edges below.
-    add_green(students, 'B', ['E'])
-    add_green(students, 'C', ['G'])
-    add_red(students, 'C', ['I'])
-    add_green(students, 'D', ['H', 'C'])
-    add_red(students, 'D', ['I'])
-    add_green(students, 'E', ['B'])
-    add_green(students, 'F', ['D', 'C'])
-    add_red(students, 'F', ['H'])
-    add_green(students, 'G', ['H'])
-    add_red(students, 'G', ['E'])
-    add_green(students, 'H', ['G'])
-    add_red(students, 'H', ['D'])
-    add_green(students, 'I', ['G', 'C'])
-    add_red(students, 'I', ['D'])
+    def is_mismatch(src : str, dst : str) -> bool:
+        return G.has_edge(dst, src) and not G[dst][src]['pref']
+
+    def add_match(src : str, candidates : [str]) -> bool:
+        random.shuffle(candidates)
+        for dst in candidates:
+            pair = tuple(sorted((src, dst)))
+            if not is_mismatch(*pair):
+                G.graph['matches'].append(pair)
+                G.remove_nodes_from(pair)
+                return True
+        return False
+        
+    while G.nodes() and (src := random.choice([*G.nodes()])):
+        greens = [n for n in G.successors(src) if G[src][n]['pref']]
+        if add_match(src, greens):
+            continue
+        non_neighbors = set(G.nodes()) - set(G.neighbors(src)) - {src}
+        if not add_match(src, list(non_neighbors)):
+            print('Cannot match:', src)
+            print('Matches found so far:', *G.graph['matches'])
+            print('Still to match:', *G)
+            return []
+    return G.graph['matches']
+
+        
+                
+            
+        
+
+
     
-    ### DO NOT EDIT
-    return students
+def enter_data(preferences : nx.DiGraph) -> None:
+    '''Populates the digraph with student preferences.'''
+
+    def add_targets(source : str, greens : [str], reds : [str]):
+        for s in greens:
+            preferences.add_edge(source, s, pref=True)
+        for s in reds:
+            preferences.add_edge(source, s, pref=False)
+        
+    ### EDIT: Add red and green edges below.
+    add_targets("Omema", ["Salma", "Aiman", "Muzammil"], ["Peshawarwala"])
+    add_targets("Munawwar", ["Warisha", "Nofil", "Muzammil"],
+                ["Hasan", "Peshawarwala"])
+    add_targets("Shams", ["Saad", "Nofil", "Anand"], ["Omema", "Aiman"])
+    add_targets("Arif", ["Shams", "Arhum"], ["Warisha"])
+    add_targets("Marium", ["Arhum", "Neha", "Saad"], ["Amin", "Mehak"])
+    add_targets("Amin", ["Omema", "Shams", "Arhum"], ["Hasan", "Fatima"])
+    add_targets("Nofil", ["Warisha", "Munawwar", "Sabihul"], ["Hasan"])
+    add_targets("Sabihul", ["Omema", "Arhum", "Shams"], ["Hasan"])
+    add_targets("Mehak", ["Neha", "Rida", "Warisha"], ["Anand", "Saad"])
+    add_targets("Arhum", ["Shams", "Anand", "Omema"], ["Amin", "Marium"])
+    add_targets("Neha", ["Mehak", "Rida", "Muzammil"], ["Amin", "Saad"])
+    add_targets("Aiman", ["Omema", "Salma", "Muzammil"], ["Peshawarwala"])
+    add_targets("Rida", ["Neha", "Mehak", "Warisha"], ["Hasan", "Peshawarwala"])
+    add_targets("Warisha", ["Nofil", "Munawwar", "Shams"], ["Hasan"])
+    add_targets("Anand", ["Shams", "Munawwar", "Omema"], ["Arhum", "Hasan"])
+    add_targets("Mahdi", ["Omema", "Anand", "Mehak"], ["Amin", "Hasan"])
+    add_targets("Hasan", ["Sabihul", "Arhum", "Omema"], ["Amin", "Mahdi"])
+    add_targets("Ozair", ["Sabihul", "Arhum", "Muzammil"], ["Warisha", "Mahdi"])
+    add_targets("Peshawarwala", ["Hasan", "Salma", "Amin"], ["Anand", "Rida"])
+    add_targets("Salma", ["Omema", "Aiman", "Muzammil"], ["Peshawarwala"])
+    add_targets("Ali", ["Munawwar", "Amin", "Shams"], ["Nofil", "Anand"])
+    add_targets("Muzammil", ["Munawwar", "Omema", "Salma"], ["Amin"])
+    add_targets("Fatima", ["Omema", "Aiman", "Salma"], ["Peshawarwala"])
 
 ### WORKS WELL ON ITS OWN. EDIT IF YOU KNOW WHAT YOU ARE DOING. 
 def main():
-    students = init_students()
-    pairs = []
-    while not pairs:
-        reset_students(students)
-        pairs = get_pairs(students)
-    max_score = get_match_score(pairs)
-    best_pairs = {pairs}
-    startProgress("progress")
-    for _ in range(1000):
-        showProgressBar(_, 1000)
-        pairs = []
-        while not pairs:
-            reset_students(students)
-            pairs = get_pairs(students)
-        score = get_match_score(pairs)
-        if score > max_score:
-            best_pairs = {pairs}
-            max_score = score
-        elif score == max_score:
-            best_pairs.add(pairs)
+    preferences = nx.DiGraph()
+    enter_data(preferences)
+    print(get_pairs(preferences))
+    # students = init_students()
+    # max_score = -1
+    # best_pairs = set()
+    # num_tries = 50000
+    # print(f'Pairing {len(students)} students in {num_tries} attempts.')
+    # startProgress("progress")
+    # for _ in range(num_tries):
+    #     showProgressBar(_, num_tries)
+    #     pairs = []
+    #     while not pairs:
+    #         pairs = get_pairs(students)
+    #         reset_students(students)
+    #     score = get_match_score(pairs)
+    #     if score > max_score:
+    #         best_pairs = {pairs}
+    #         max_score = score
+    #     elif score == max_score:
+    #         best_pairs.add(pairs)
 
-    endProgress()
-    print(f'\nGot {len(best_pairs)} pairings with score of {max_score}:')
-    color_print(best_pairs)
+    # endProgress()
+    # print(f'\nGot {len(best_pairs)} pairings with score of {max_score}:')
+    # color_print(best_pairs)
     
 
 if __name__ == '__main__':
