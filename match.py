@@ -19,22 +19,22 @@ def progress(x):
 def endProgress():
     sys.stdout.write("#" * (40 - progress_x) + "]\n")
     sys.stdout.flush()
-    
-def get_matching_score(G, pairs):
-    score = sum((1 for src, dst in pairs
-                 if G.has_edge(src, dst) and G[src][dst]['pref']))
-    score += sum((1 for src, dst in pairs
-                  if G.has_edge(dst, src) and G[dst][src]['pref']))
-    perfect_score = sum((1 for n in G.nodes() if G.nodes[n]['pref']))
-    return score / perfect_score
 
-def showProgressBar(currentScore, total):
+def showProgressBar(currentScore : int, total: int):
     stepSize = total/10
     number_dec = str(currentScore/stepSize-int(currentScore/stepSize))[1:]
     if(number_dec == ".0"):
         progress(((currentScore/total)*100))    
+    
+def get_matching_score(G : nx.DiGraph, matching : [(str, str)]) -> float:
+    score = sum((1 for src, dst in matching
+                 if G.has_edge(src, dst) and G[src][dst]['pref']))
+    score += sum((1 for src, dst in matching
+                  if G.has_edge(dst, src) and G[dst][src]['pref']))
+    perfect_score = sum((1 for n in G.nodes() if G.nodes[n]['pref']))
+    return score / perfect_score
 
-def pretty_string(G, matching):
+def get_pretty_string(G : nx.DiGraph, matching : [(str, str)]) -> str:
     def get_color_string(src : str, dst : str) -> str:
         if not G.has_edge(src, dst):
             if G.nodes[src]['pref']:
@@ -50,8 +50,8 @@ def pretty_string(G, matching):
                 for src, dst in matching]
     return ', '.join(to_print)
 
-def get_pairs(preferences : nx.DiGraph) -> ([(str, str)], bool):
-    '''Extract feasible pairs from preferences.'''
+def get_matching(preferences : nx.DiGraph) -> [(str, str)]:
+    '''Extract feasible matching from preferences.'''
     import copy
     G = copy.deepcopy(preferences)
     G.graph['matching'] = []
@@ -77,7 +77,19 @@ def get_pairs(preferences : nx.DiGraph) -> ([(str, str)], bool):
         if not add_match(src, list(non_neighbors)):
             return []
     return G.graph['matching']
-    
+
+def visualize(G : nx.DiGraph) -> None:
+    from graphviz import Digraph
+    file_name = "preferences"
+    dot = Digraph()
+    dot.attr('edge', color = 'darkgreen:red')
+    for src,dst in G.edges():
+        if G[src][dst]['pref']:
+            dot.edge(src,dst, color='darkgreen' )
+        else:
+            dot.edge(src,dst, color='red' )
+    dot.render(file_name, view=True)
+            
 def enter_data(preferences : nx.DiGraph) -> None:
     '''Populates the digraph with student preferences.'''
 
@@ -89,52 +101,49 @@ def enter_data(preferences : nx.DiGraph) -> None:
         preferences.nodes[src]['pref'] = True
         
     ### EDIT: Add red and green edges below.
-    add_targets("Omema", ["Salma", "Aiman", "Muzammil"], ["Peshawarwala"])
-    add_targets("Munawwar", ["Warisha", "Nofil", "Muzammil"],
-                ["Hasan", "Peshawarwala"])
-    add_targets("Shams", ["Saad", "Nofil", "Anand"], ["Omema", "Aiman"])
-    add_targets("Arif", ["Shams", "Arhum"], ["Warisha"])
-    add_targets("Marium", ["Arhum", "Neha", "Saad"], ["Amin", "Mehak"])
-    add_targets("Amin", ["Omema", "Shams", "Arhum"], ["Hasan", "Fatima"])
-    add_targets("Nofil", ["Warisha", "Munawwar", "Sabihul"], ["Hasan"])
-    add_targets("Sabihul", ["Omema", "Arhum", "Shams"], ["Hasan"])
-    add_targets("Mehak", ["Neha", "Rida", "Warisha"], ["Anand", "Saad"])
-    add_targets("Arhum", ["Shams", "Anand", "Omema"], ["Amin", "Marium"])
-    add_targets("Neha", ["Mehak", "Rida", "Muzammil"], ["Amin", "Saad"])
-    add_targets("Aiman", ["Omema", "Salma", "Muzammil"], ["Peshawarwala"])
-    add_targets("Rida", ["Neha", "Mehak", "Warisha"], ["Hasan", "Peshawarwala"])
-    add_targets("Warisha", ["Nofil", "Munawwar", "Shams"], ["Hasan"])
-    add_targets("Anand", ["Shams", "Munawwar", "Omema"], ["Arhum", "Hasan"])
-    add_targets("Mahdi", ["Omema", "Anand", "Mehak"], ["Amin", "Hasan"])
-    add_targets("Hasan", ["Sabihul", "Arhum", "Omema"], ["Amin", "Mahdi"])
-    add_targets("Ozair", ["Sabihul", "Arhum", "Muzammil"], ["Warisha", "Mahdi"])
-    add_targets("Peshawarwala", ["Hasan", "Salma", "Amin"], ["Anand", "Rida"])
-    add_targets("Salma", ["Omema", "Aiman", "Muzammil"], ["Peshawarwala"])
-    add_targets("Ali", ["Munawwar", "Amin", "Shams"], ["Nofil", "Anand"])
-    add_targets("Muzammil", ["Munawwar", "Omema", "Salma"], ["Amin"])
-    add_targets("Fatima", ["Omema", "Aiman", "Salma"], ["Peshawarwala"])
+    add_targets("A", ["B", "C", "D"], ["E"])
+    add_targets("F", ["G", "H", "D"], ["I", "E"])
+    add_targets("J", ["K", "H", "L"], ["A", "C"])
+    add_targets("M", ["J", "N"], ["G"])
+    add_targets("O", ["N", "P", "K"], ["Q", "R"])
+    add_targets("Q", ["A", "J", "N"], ["I", "S"])
+    add_targets("H", ["G", "F", "T"], ["I"])
+    add_targets("T", ["A", "N", "J"], ["I"])
+    add_targets("R", ["P", "U", "G"], ["L", "K"])
+    add_targets("N", ["J", "L", "A"], ["Q", "O"])
+    add_targets("P", ["R", "U", "D"], ["Q", "K"])
+    add_targets("C", ["A", "B", "D"], ["E"])
+    add_targets("U", ["P", "R", "G"], ["I", "E"])
+    add_targets("G", ["H", "F", "J"], ["I"])
+    add_targets("L", ["J", "F", "A"], ["N", "I"])
+    add_targets("V", ["A", "L", "R"], ["Q", "I"])
+    add_targets("I", ["T", "N", "A"], ["Q", "V"])
+    add_targets("W", ["T", "N", "D"], ["G", "V"])
+    add_targets("E", ["I", "B", "Q"], ["L", "U"])
+    add_targets("B", ["A", "C", "D"], ["E"])
+    add_targets("X", ["F", "Q", "J"], ["H", "L"])
+    add_targets("D", ["F", "A", "B"], ["Q"])
+    add_targets("S", ["A", "C", "B"], ["E"])
 
 ### WORKS WELL ON ITS OWN. EDIT IF YOU KNOW WHAT YOU ARE DOING. 
 def main():
     preferences = nx.DiGraph()
     enter_data(preferences)
+    visualize(preferences)
     for n in preferences.nodes():
-        # preferences.nodes[n]['pref'] = preferences.nodes[n].get('pref', False)
         preferences.nodes[n].setdefault('pref', False)
-    [print(n,preferences.nodes[n]['pref']) for n in preferences.nodes()]
-    num_tries : int = 5000
+    num_tries : int = 10000
     high_score : int = -1
     best_matching : [(str, str)] = []
     startProgress("progress")
     for _ in range(num_tries):
         showProgressBar(_, num_tries)
-        if (matching := get_pairs(preferences)) and \
+        if (matching := get_matching(preferences)) and \
            (score := get_matching_score(preferences, matching)) > high_score:
             high_score = score
             best_matching = matching
     endProgress()
-    print(f'{pretty_string(preferences, best_matching)}\n{high_score}')
+    print(f'{get_pretty_string(preferences, best_matching)}\n{high_score}')
     
-
 if __name__ == '__main__':
     main()
