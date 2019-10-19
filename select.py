@@ -25,7 +25,7 @@ def get_matching_score(G, pairs):
                  if G.has_edge(src, dst) and G[src][dst]['pref']))
     score += sum((1 for src, dst in pairs
                   if G.has_edge(dst, src) and G[dst][src]['pref']))
-    perfect_score = sum((1 for src,dst in G.edges() if G[src][dst]['pref']))
+    perfect_score = sum((1 for n in G.nodes() if G.nodes[n]['pref']))
     return score / perfect_score
 
 def showProgressBar(currentScore, total):
@@ -37,6 +37,8 @@ def showProgressBar(currentScore, total):
 def pretty_string(G, matching):
     def get_color_string(src : str, dst : str) -> str:
         if not G.has_edge(src, dst):
+            if G.nodes[src]['pref']:
+                return f'{Fore.YELLOW}{src}{Style.RESET_ALL}'
             return src
         elif G[src][dst]['pref']:
             return f'{Fore.GREEN}{src}{Style.RESET_ALL}'
@@ -79,11 +81,12 @@ def get_pairs(preferences : nx.DiGraph) -> ([(str, str)], bool):
 def enter_data(preferences : nx.DiGraph) -> None:
     '''Populates the digraph with student preferences.'''
 
-    def add_targets(source : str, greens : [str], reds : [str]):
+    def add_targets(src : str, greens : [str], reds : [str]):
         for n in greens:
-            preferences.add_edge(source, n, pref=True)
+            preferences.add_edge(src, n, pref=True)
         for n in reds:
-            preferences.add_edge(source, n, pref=False)
+            preferences.add_edge(src, n, pref=False)
+        preferences.nodes[src]['pref'] = True
         
     ### EDIT: Add red and green edges below.
     add_targets("Omema", ["Salma", "Aiman", "Muzammil"], ["Peshawarwala"])
@@ -115,6 +118,10 @@ def enter_data(preferences : nx.DiGraph) -> None:
 def main():
     preferences = nx.DiGraph()
     enter_data(preferences)
+    for n in preferences.nodes():
+        # preferences.nodes[n]['pref'] = preferences.nodes[n].get('pref', False)
+        preferences.nodes[n].setdefault('pref', False)
+    [print(n,preferences.nodes[n]['pref']) for n in preferences.nodes()]
     num_tries : int = 5000
     high_score : int = -1
     best_matching : [(str, str)] = []
