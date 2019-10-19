@@ -20,14 +20,13 @@ def endProgress():
     sys.stdout.write("#" * (40 - progress_x) + "]\n")
     sys.stdout.flush()
     
-def get_match_score(pairs):
-    score = 0
-    for src,dst in pairs:
-        if src in dst.green:
-            score += 1
-        if dst in src.green:
-            score += 1
-    return score / (2 * len(pairs))
+def get_match_score(G, pairs):
+    score = sum((1 for src, dst in pairs
+                 if G.has_edge(src, dst) and G[src][dst]['pref']))
+    score += sum((1 for src, dst in pairs
+                  if G.has_edge(dst, src) and G[dst][src]['pref']))
+    perfect_score = sum((1 for src,dst in G.edges() if G[src][dst]['pref']))
+    return score / perfect_score
 
 def showProgressBar(currentScore, total):
     stepSize = total/10
@@ -68,7 +67,7 @@ def get_pairs(preferences : nx.DiGraph) -> [(str, str)]:
     def add_match(src : str, candidates : [str]) -> bool:
         random.shuffle(candidates)
         for dst in candidates:
-            pair = tuple(sorted((src, dst)))
+            pair = (src, dst))
             if not is_mismatch(*pair):
                 G.graph['matches'].append(pair)
                 G.remove_nodes_from(pair)
@@ -86,22 +85,15 @@ def get_pairs(preferences : nx.DiGraph) -> [(str, str)]:
             print('Still to match:', *G)
             return []
     return G.graph['matches']
-
-        
-                
-            
-        
-
-
     
 def enter_data(preferences : nx.DiGraph) -> None:
     '''Populates the digraph with student preferences.'''
 
     def add_targets(source : str, greens : [str], reds : [str]):
-        for s in greens:
-            preferences.add_edge(source, s, pref=True)
-        for s in reds:
-            preferences.add_edge(source, s, pref=False)
+        for n in greens:
+            preferences.add_edge(source, n, pref=True)
+        for n in reds:
+            preferences.add_edge(source, n, pref=False)
         
     ### EDIT: Add red and green edges below.
     add_targets("Omema", ["Salma", "Aiman", "Muzammil"], ["Peshawarwala"])
@@ -133,7 +125,8 @@ def enter_data(preferences : nx.DiGraph) -> None:
 def main():
     preferences = nx.DiGraph()
     enter_data(preferences)
-    print(get_pairs(preferences))
+    if match := get_pairs(preferences):
+        print(get_match_score(preferences, match))
     # students = init_students()
     # max_score = -1
     # best_pairs = set()
