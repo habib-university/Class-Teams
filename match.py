@@ -49,7 +49,7 @@ def get_pretty_string(G : nx.DiGraph, matching : [(str, str)]) -> str:
         else:
             return f'{Fore.RED}{src}{Style.RESET_ALL}'
         
-    matching = sorted([sorted(pair) for pair in matching])
+    matching = sorted([sorted(match) for match in matching])
     to_print = [f'({get_color_string(src, dst)}, {get_color_string(dst, src)})'
                 for src, dst in matching]
     return ', '.join(to_print)
@@ -66,10 +66,10 @@ def get_matching(preferences : nx.DiGraph) -> [(str, str)]:
     def add_match(src : str, candidates : [str]) -> bool:
         random.shuffle(candidates)
         for dst in candidates:
-            pair = (src, dst)
-            if not is_mismatch(*pair):
-                G.graph['matching'].append(pair)
-                G.remove_nodes_from(pair)
+            match = (src, dst)
+            if not is_mismatch(*match):
+                G.graph['matching'].append(match)
+                G.remove_nodes_from(match)
                 return True
         return False
         
@@ -92,43 +92,34 @@ def visualize(G : nx.DiGraph) -> None:
             dot.edge(src,dst, color='darkgreen' )
         else:
             dot.edge(src,dst, color='red' )
+    dot.format = 'png'
     dot.render(file_name, view=True)
             
-def enter_data(preferences : nx.DiGraph) -> None:
+def enter_data(G : nx.DiGraph) -> None:
     '''Populates the digraph with student preferences.'''
 
     def add_targets(src : str, greens : [str], reds : [str]):
         for n in greens:
-            preferences.add_edge(src, n, pref=True)
+            G.add_edge(src, n, pref=True)
         for n in reds:
-            preferences.add_edge(src, n, pref=False)
-        preferences.nodes[src]['pref'] = True
+            G.add_edge(src, n, pref=False)
+        G.nodes[src]['pref'] = True
         
-    ### EDIT: Add red and green edges below.
-    add_targets("A", ["B", "C", "D"], ["E"])
-    add_targets("F", ["G", "H", "D"], ["I", "E"])
-    add_targets("J", ["K", "H", "L"], ["A", "C"])
-    add_targets("M", ["J", "N"], ["G"])
-    add_targets("O", ["N", "P", "K"], ["Q", "R"])
-    add_targets("Q", ["A", "J", "N"], ["I", "S"])
-    add_targets("H", ["G", "F", "T"], ["I"])
-    add_targets("T", ["A", "N", "J"], ["I"])
-    add_targets("R", ["P", "U", "G"], ["L", "K"])
-    add_targets("N", ["J", "L", "A"], ["Q", "O"])
-    add_targets("P", ["R", "U", "D"], ["Q", "K"])
-    add_targets("C", ["A", "B", "D"], ["E"])
-    add_targets("U", ["P", "R", "G"], ["I", "E"])
-    add_targets("G", ["H", "F", "J"], ["I"])
-    add_targets("L", ["J", "F", "A"], ["N", "I"])
-    add_targets("V", ["A", "L", "R"], ["Q", "I"])
-    add_targets("I", ["T", "N", "A"], ["Q", "V"])
-    add_targets("W", ["T", "N", "D"], ["G", "V"])
-    add_targets("E", ["I", "B", "Q"], ["L", "U"])
-    add_targets("B", ["A", "C", "D"], ["E"])
-    add_targets("X", ["F", "Q", "J"], ["H", "L"])
-    add_targets("D", ["F", "A", "B"], ["Q"])
-    add_targets("S", ["A", "C", "B"], ["E"])
+    ### EDIT: Add greens and reds below.
+    add_targets("U", ["Z", "P", "W"], ["T"])
+    add_targets("X", ["Z", "P", "Q"], ["T"])
+    add_targets("Q", ["X", "Z", "R"], ["T"])
+    add_targets("R", ["V", "S", "U"], ["T"])
+    add_targets("S", ["V", "P", "U"], ["T"])
+    add_targets("W", ["U", "P", "S"], ["T"])
+    add_targets("Z", ["S", "U", "P"], ["T"])
+    add_targets("V", ["R", "U", "P"], ["W"])
+    # add_targets("Y", ["P", "R", "V"], ["T"])
 
+    ### EDIT: Add students that are not included above but need to be matched.
+    no_data = [] # populate this list with ID's.
+    G.add_nodes_from(no_data)
+    
 ### WORKS WELL ON ITS OWN. EDIT IF YOU KNOW WHAT YOU ARE DOING. 
 def main():
     preferences = nx.DiGraph()
