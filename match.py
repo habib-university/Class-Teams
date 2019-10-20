@@ -5,13 +5,13 @@ import sys
 
 ############### PROGRESS BAR FUNCTIONS BEGIN
 
-def startProgress(title):
+def startProgress(title : str):
     global progress_x
     sys.stdout.write(title + ": [")
     sys.stdout.flush()
     progress_x = 0
 
-def progress(x):
+def progress(x : int):
     global progress_x
     x = int(x * 40 // 100)
     sys.stdout.write("#" * (x - progress_x))
