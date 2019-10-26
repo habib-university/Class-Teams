@@ -1,23 +1,20 @@
 # Team Selector
 
-I need to make student teams of 2 in my classes for which I ask students to specify _greens_ and _reds_. Greens are people that the student wants to work with and reds are people that they _do not_ want to work with. This program matches students according to these prefernces.
+I need to make student teams of 2 in my classes for which I ask students to specify _greens_ and _reds_. Greens are people that the student wants to work with and reds are people that they _do not_ want to work with. This program matches students according to these preferences.
 
 ## How to Use
 
-You _only_ need to make the filloiwng edits in the `enter_data` function toward the bottom of the file,  _match.py_. The segments to be edited are clearly marked in the file with __EDIT__.
+Enter your data in the file, `preferences.csv`. A sample is provided. The details of the required format are given below.
 
-1. Add the greens and reds for each student through calls to `add_targets`. `add_targets` needs to be called as per this signature.
-```
-def add_targets(src_student : str, greens : [str], reds : [str])
-```
-Leave the corresponding list blank if no data is present, e.g. if a student has not indicated any reds. 
-1. Students who did not submit any preference and are not included in other students' reds or greens should be included separately as follows.
-```
-no_data = [] # populate this list with ID's.
-G.add_nodes_from([no_data])
-```
+The first row contains titles. The first title indicates a student and may be left blank. The remaining titles are any number of _green_ and _red_ in any order.
 
-Use a unique ID for each student and take care to not mistype it.
+Each remaining row contains the preferences of an individual student, the _source_ for that row. The name of the source appears in the first column. Each cell in a column titled _green_ contains the name of a different student that _source_ wants to work with. Each cell in a column titled _red_ contains the name of a different student that _source_ does not want to work with.
+
+Different students may have different numbers or greens and reds. Leave cells blank for missing data. The program accounts for all students indicated as a source, a green, or a red. Students who have not been indicated as either of these but still need to be matched should be added in the file as sources with no data for greens or reds.
+
+Make sure to use a unique name for each student and to use the name consistently. Take care to not mistype it as the program currently cannot account for typos.
+
+The set of students indicated as sources, greens, and reds __must have an even size__.
 
 ## The Computed Matching
 
@@ -34,21 +31,22 @@ The program outputs a graph visualizing the preferences.
 ## Requirements
 
 To run the program,
+
 - you need at least python 3.8 because of the use of _assignment expressions_. Update your python from https://www.python.org.
 - you need the `colorama` package because of its use for colored output. Run `pip install colorama` or `pip3 install colorama`, depending on your platform, if it is not installed.
 - you need the `graphviz` package because of its use for visualization. Run `pip install graphviz` or `pip3 install graphviz`, depending on your platform, if it is not installed.
 
 ## How it Works
 
-The problem is modeled as a directed graph with every student as a node, green edges form a student to their greens and red edges from a student to their reds. The program tries to partition the vertices into pairs or _matches_ such that no match contains a red and as many greens are included in the matches as possible.
+The problem is modeled as a directed graph with every student as a node, green edges from a student to their greens and red edges from a student to their reds. The program tries to partition the vertices into pairs or _matches_ such that no match contains a red and as many greens are included in the matches as possible.
 
-The program builds a matching by iteratively picking a random node as the _source_ and buildong a match with one of its greens such that _source_ is not a red of the green. If a match cannot be found among the greens, nodes not connected to _source_ are searched for matches. If still no match is found, the matching fails. Once a match is found, _source_ and its match are added to the matching and removed from the graph.
+The program builds a matching by iteratively picking a random node as the _source_ and building a match with one of its greens such that _source_ is not a red of the green. If a match cannot be found among the greens, nodes not connected to _source_ are searched for matches. If still no match is found, the matching fails. Once a match is found, _source_ and its match are added to the matching and removed from the graph.
 
-AS random choices are involved, the above process is repeated several times to maximize the likelihood of a high scoring pairing. The highest scoring pairings (there may be multiple) are saved.
+As random choices are involved, the above process is repeated several times to maximize the likelihood of a high scoring pairing. The highest scoring pairings (there may be multiple) are saved.
 
 ## Limitations
 
-- It may be possible for a set of prefernces to not lead to any possible matching. That has to be studied.
+- It may be possible for a set of preferences to not lead to any possible matching. That has to be studied.
 - I have not considered how this works for an odd number of students. The program could be run for an even number of students, leaving one student out, and that remaining student could be inserted manually into a computed pair.
 
 ## Extensions

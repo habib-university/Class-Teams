@@ -3,6 +3,10 @@ import networkx as nx
 import random
 import sys
 
+# Number of tries in order to improve on an obtained matching.
+NUM_TRIES : int = 10000
+
+
 ############### PROGRESS BAR FUNCTIONS BEGIN
 
 def startProgress(title : str):
@@ -100,7 +104,8 @@ def enter_data(G : nx.DiGraph) -> None:
     def add_targets(src : str, greens : [str], reds : [str]):
         [G.add_edge(src, n, pref=True) for n in greens]
         [G.add_edge(src, n, pref=False) for n in reds]
-        G.nodes[src]['pref'] = True
+        if greens or reds:
+            G.nodes[src]['pref'] = True
 
     # Reading a CSV file, adapted from:
     # https://realpython.com/python-csv/ and
@@ -130,12 +135,11 @@ def main():
     visualize(preferences)
     for n in preferences.nodes():
         preferences.nodes[n].setdefault('pref', False)
-    num_tries : int = 10000
     high_score : int = -sys.maxsize -1
     best_matching : [(str, str)] = []
     startProgress("progress")
-    for _ in range(num_tries):
-        showProgressBar(_, num_tries)
+    for _ in range(NUM_TRIES):
+        showProgressBar(_, NUM_TRIES)
         if (matching := get_matching(preferences)) and \
            (score := get_score_for_matching(preferences, matching)) > high_score:
             high_score = score
