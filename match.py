@@ -3,9 +3,8 @@ import networkx as nx
 import random
 import sys
 
-# Number of tries in order to improve on an obtained matching.
+# Number of random matchings to compute; the highest scoring is chosen.
 NUM_TRIES : int = 10000
-
 
 ############### PROGRESS BAR FUNCTIONS BEGIN
 
