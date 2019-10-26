@@ -18,7 +18,7 @@ The set of students indicated as sources, greens, and reds __must have an even s
 
 ## The Computed Matching
 
-The program _matches_ each student according to their preference. The set of all matches is called a _matching_. The program computes many matchings and outputs the one with the highest _goodness score_ which is between 0 (worst) and 1 (best). The matching score is a measure of the number of students in the matching who are matched with a green. If no matching can be found, the output score is -1.
+The program _matches_ each student according to their preference. The set of all matches is called a _matching_. The program computes many matchings and outputs the one with the highest _goodness score_ which is between 0 (worst) and 1 (best). The matching score is a measure of the number of students in the matching who are matched with a green. If no matching can be found, the output score is negative.
 
 Because the programs makes matches of 2, the total number of specified students __must be even__.
 
@@ -43,6 +43,26 @@ The problem is modeled as a directed graph with every student as a node, green e
 The program builds a matching by iteratively picking a random node as the _source_ and building a match with one of its greens such that _source_ is not a red of the green. If a match cannot be found among the greens, nodes not connected to _source_ are searched for matches. If still no match is found, the matching fails. Once a match is found, _source_ and its match are added to the matching and removed from the graph.
 
 As random choices are involved, the above process is repeated several times to maximize the likelihood of a high scoring pairing. The highest scoring pairings (there may be multiple) are saved.
+
+### Visualization
+
+The program saves and launches a visualization of the graph. The generated file name is `preferences.pdf`.
+
+### Sample Output
+
+Provided that the requriemetns are met, the given program shoud run with the given `preferences.csv` file as-is. The produced output will be of the form
+```
+>>> main()
+Read preferences of 10 students with up to 3 greens and 1 reds.
+progress: [########################################]
+(P, T), (Q, X), (R, V), (S, W), (U, Z)
+0.875
+```
+
+- The first line of the output contains summary information of the data read from `preferences.csv`.
+- The second line is a progress bar which updates while the program is still trying to find a better match.
+- The third line shows the highest scoring matching found. This may differ for you.
+- The last line of the output shows how well the matching scored.
 
 ## Limitations
 
