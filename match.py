@@ -7,7 +7,6 @@ Last Edit: 26 Oct, 2019
 CSV reading adapted from:
 - https://realpython.com/python-csv/ and
 - https://stackoverflow.com/questions/17262256/how-to-read-one-single-line-of-csv-data-in-python
-
 '''
 
 import copy
@@ -76,8 +75,9 @@ def get_score_for_matching(graph: nx.DiGraph, matching: [(str, str)]) -> float:
     # This matching's score is the number of greens included in the matching.
     # That is, how many nodes are matched with their greens?
     score = sum((1 for src, dst in matching
-                 if (graph.has_edge(src, dst) and graph[src][dst]['pref'])
-                 or (graph.has_edge(dst, src) and graph[dst][src]['pref'])))
+                 if (graph.has_edge(src, dst) and graph[src][dst]['pref'])))
+    score += sum((1 for src, dst in matching
+                  if (graph.has_edge(dst, src) and graph[dst][src]['pref'])))
     # The score is perfect when everyone is matched with one of their greens.
     perfect_score = sum((1 for n in graph.nodes() if graph.nodes[n]['pref']))
     # Normalize this matching's score w.r.t. the perfect score.
@@ -96,7 +96,7 @@ def get_pretty_string(graph: nx.DiGraph, matching: [(str, str)]) -> str:
     def get_color_string(src: str, dst: str) -> str:
         """Returns a colored src depending on the preference of src to dst.
 
-        src does not have any preference: black
+        src is indifferent: black
         src has preferences but dst is not one of them: yellow
         dst is a green of src: green
         dst is a red of src: src red
@@ -108,7 +108,7 @@ def get_pretty_string(graph: nx.DiGraph, matching: [(str, str)]) -> str:
         Returns:
         a colored src
         """
-        if not graph.nodes[src]['pref']:  # src has no preferences
+        if not graph.nodes[src]['pref']:  # src is indifferent
             return src
         elif not graph.has_edge(src, dst):  # src is indifferent to dst
             return f'{Fore.YELLOW}{src}{Style.RESET_ALL}'
@@ -203,7 +203,7 @@ def read_data(csv_filename: str) -> nx.DiGraph:
     """
     graph = nx.DiGraph()  # graph to store input preferences.
 
-    def add_targets(src: str, greens: [str], reds: [str]) -> None:
+    def add_preferences(src: str, greens: [str], reds: [str]) -> None:
         """Adds preferences to the graph.
 
         Args:
@@ -217,21 +217,22 @@ def read_data(csv_filename: str) -> nx.DiGraph:
         if greens or reds:
             graph.nodes[src]['pref'] = True
 
-    # Identify the columns in the file that contain the greens and the
-    # reds. Read CSV rows to add greens and reds to graph.
+    # Read the header row and identify the columns in the file that contain the
+    # greens and the reds. In each remaining row, read the source node, its
+    # greens and reds, and add the preferences to graph. When reading, ignore
+    # extraneous whitespace that may arise due to bad CSV saving.
     with open(csv_filename) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
-        headers = next(csv_reader)
-        headers = list(map(lambda s: s.strip().lower(), headers))
+        headers = list(map(lambda s: s.strip().lower(), next(csv_reader)))
         green_indexes = [i for i, head in enumerate(headers) if "green" in head]
         red_indexes = [i for i, head in enumerate(headers) if "red" in head]
         for row in csv_reader:
             row = list(map(str.strip, row))
-            if not row[0]:
-                continue
-            greens = [g for i in green_indexes if (g := row[i])]
-            reds = [r for i in red_indexes if (r := row[i])]
-            add_targets(row[0], greens, reds)
+            if (src := row[0]):
+                greens = [g for i in green_indexes if (g := row[i])]
+                reds = [r for i in red_indexes if (r := row[i])]
+                add_preferences(src, greens, reds)
+    # Print a summary of the information read from the file. Return graph.
     print(f'Read preferences of {len(graph.nodes())} students with up to '
           f'{len(green_indexes)} greens and {len(red_indexes)} reds.')
     return graph
@@ -239,11 +240,15 @@ def read_data(csv_filename: str) -> nx.DiGraph:
 ### WORKS WELL ON ITS OWN. EDIT ONLY IF YOU KNOW WHAT YOU ARE DOING.
 def main():
     '''Computes the best matching from input preferences.'''
+    # Build graph from preferences, and mark the nodes that are
+    # indifferent. Visualize the graph, and compute NUM_TRIES matchings. Store
+    # the matching with the highest score. Show progress bar as matchings are
+    # computed.
     filename = 'preferences.csv'
     graph = read_data(filename)
-    visualize(graph)
     for src in graph.nodes():
         graph.nodes[src].setdefault('pref', False)
+    visualize(graph)
     high_score: int = -sys.maxsize -1
     best_matching: [(str, str)] = []
     start_progress("progress")
@@ -254,6 +259,8 @@ def main():
             high_score = score
             best_matching = matching
     end_progress()
+    # Output the best (highest scoring) match in a suitable format and its
+    # score.
     print(f'{get_pretty_string(graph, best_matching)}\n{high_score}')
 
 if __name__ == '__main__':
