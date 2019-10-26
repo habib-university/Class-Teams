@@ -131,7 +131,7 @@ def main():
     for n in preferences.nodes():
         preferences.nodes[n].setdefault('pref', False)
     num_tries : int = 10000
-    high_score : int = -1
+    high_score : int = -sys.maxsize -1
     best_matching : [(str, str)] = []
     startProgress("progress")
     for _ in range(num_tries):
