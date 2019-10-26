@@ -99,28 +99,32 @@ def enter_data(G : nx.DiGraph) -> None:
     '''Populates the digraph with student preferences.'''
 
     def add_targets(src : str, greens : [str], reds : [str]):
-        for n in greens:
-            G.add_edge(src, n, pref=True)
-        for n in reds:
-            G.add_edge(src, n, pref=False)
+        [G.add_edge(src, n, pref=True) for n in greens]
+        [G.add_edge(src, n, pref=False) for n in reds]
         G.nodes[src]['pref'] = True
-        
-    ### EDIT: Add greens and reds below.
-    add_targets("U", ["Z", "P", "W"], ["T"])
-    add_targets("X", ["Z", "P", "Q"], ["T"])
-    add_targets("Q", ["X", "Z", "R"], ["T"])
-    add_targets("R", ["V", "S", "U"], ["T"])
-    add_targets("S", ["V", "P", "U"], ["T"])
-    add_targets("W", ["U", "P", "S"], ["T"])
-    add_targets("Z", ["S", "U", "P"], ["T"])
-    add_targets("V", ["R", "U", "P"], ["W"])
-    # add_targets("Y", ["P", "R", "V"], ["T"])
 
-    ### EDIT: Add students that are not included above but need to be matched.
-    no_data = [] # populate this list with ID's.
-    G.add_nodes_from(no_data)
+    # Reading a CSV file, adapted from:
+    # https://realpython.com/python-csv/ and
+    # https://stackoverflow.com/questions/17262256/how-to-read-one-single-line-of-csv-data-in-python
+    import csv
+
+    with open('preferences.csv') as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        headers = next(csv_reader)
+        headers = list(map(lambda s: s.strip().lower(), headers))
+        green_indexes = [i for i,title in enumerate(headers) if "green" in title]
+        red_indexes = [i for i,title in enumerate(headers) if "red" in title]
+        for row in csv_reader:
+            row = list(map(str.strip, row))
+            if not row[0]:
+                continue
+            greens = [g for i in green_indexes if (g := row[i])]
+            reds = [r for i in red_indexes if (r := row[i])]
+            add_targets(row[0], greens, reds)
+    print(f'Read preferences of {len(G.nodes())} students with up to '
+          f'{len(green_indexes)} greens and {len(red_indexes)} reds.')
     
-### WORKS WELL ON ITS OWN. EDIT IF YOU KNOW WHAT YOU ARE DOING. 
+### WORKS WELL ON ITS OWN. EDIT ONLY IF YOU KNOW WHAT YOU ARE DOING. 
 def main():
     preferences = nx.DiGraph()
     enter_data(preferences)
