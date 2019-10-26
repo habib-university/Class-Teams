@@ -12,6 +12,7 @@ import sys
 import networkx as nx
 
 from colorama import Fore, Style
+from graphviz import Digraph
 
 # Number of random matchings to compute; the highest scoring is chosen.
 NUM_TRIES: int = 10000
@@ -89,9 +90,10 @@ def get_pretty_string(graph: nx.DiGraph, matching: [(str, str)]) -> str:
     def get_color_string(src: str, dst: str) -> str:
         """Returns a colored src depending on the preference of src to dst.
 
-        dst is a green of src: src is colored green
-        dst is a red of src: src is colored red
-        dst is neither a red nor a green of src: src is colored yellow
+        src does not have any preference: black
+        src has preferences but dst is not one of them: yellow
+        dst is a green of src: green
+        dst is a red of src: src red
 
         Args:
         src: the node to be colored
@@ -122,15 +124,27 @@ def get_matching(graph: nx.DiGraph) -> [(str, str)]:
     graph: contains nodes and edges indicating input preferences.
 
     Returns:
-    
+    a feasible matching. if none is found, the returned list is empty.
     """
     graph = copy.deepcopy(graph)
     graph.graph['matching'] = []
 
     def is_mismatch(src: str, dst: str) -> bool:
+        '''Is matching str with dst disallowed? That is, is src a red of dst?'''
         return graph.has_edge(dst, src) and not graph[dst][src]['pref']
 
     def add_match(src: str, candidates: [str]) -> bool:
+        """Finds a match for src from candidates and reports the success.
+
+        Some candidates may be disqualified as per preferences.
+
+        Args:
+        src: the node to be matched
+        canddates: the list of possible matches for src
+
+        Returns:
+        True if a match is found from candidates, False otherwise.
+        """
         random.shuffle(candidates)
         for dst in candidates:
             match = (src, dst)
@@ -139,6 +153,7 @@ def get_matching(graph: nx.DiGraph) -> [(str, str)]:
                 graph.remove_nodes_from(match)
                 return True
         return False
+
     while graph.nodes() and (src := random.choice([*graph.nodes()])):
         greens = [n for n in graph.successors(src) if graph[src][n]['pref']]
         if add_match(src, greens):
@@ -149,7 +164,7 @@ def get_matching(graph: nx.DiGraph) -> [(str, str)]:
     return graph.graph['matching']
 
 def visualize(graph: nx.DiGraph) -> None:
-    from graphviz import Digraph
+    '''Visualizes the preferences indicated in graph.'''
     file_name = "preferences"
     dot = Digraph()
     dot.attr('edge', color='darkgreen:red')
