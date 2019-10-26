@@ -3,6 +3,11 @@
 Author: Waqar Saleem
 Contact: wsaleem@gmail.com
 Last Edit: 26 Oct, 2019
+
+CSV reading adapted from:
+- https://realpython.com/python-csv/ and
+- https://stackoverflow.com/questions/17262256/how-to-read-one-single-line-of-csv-data-in-python
+
 '''
 
 import copy
@@ -32,14 +37,14 @@ def show_progress_bar(current_score: int, max_score: int) -> None:
     """Updates progress bar with the current progress.
 
     Args:
-    current_score: the progress so far
-    max_score: the progress to be reached
+    - current_score: the progress so far
+    - max_score: the progress to be reached
     """
     def progress(score: int) -> None:
         """Display progress bar with current progress.
 
         Args:
-        score: the progress so far
+        - score: the progress so far
         """
         global PROGRESS_X
         score = int(score * 40 // 100)
@@ -62,8 +67,8 @@ def get_score_for_matching(graph: nx.DiGraph, matching: [(str, str)]) -> float:
     """Scores a matching.
 
     Args:
-    graph: contains the nodes and edges to be used to compute the score
-    matching: the matching to be scored
+    - graph: contains the nodes and edges to be used to compute the score
+    - matching: the matching to be scored
 
     Returns:
     the score for matching.
@@ -82,8 +87,8 @@ def get_pretty_string(graph: nx.DiGraph, matching: [(str, str)]) -> str:
     """Builds and returns a string describing the matching.
 
     Args:
-    graph: contains the nodes and edges that indicate input preferences.
-    matching: the matching for which the string is to be built.
+    - graph: contains the nodes and edges that indicate input preferences.
+    - matching: the matching for which the string is to be built.
 
     Returns:
     a string description of the matching.
@@ -97,22 +102,24 @@ def get_pretty_string(graph: nx.DiGraph, matching: [(str, str)]) -> str:
         dst is a red of src: src red
 
         Args:
-        src: the node to be colored
-        dst: the preference of src to dst determines the color assigned to src
+        - src: the node to be colored
+        - dst: the preference of src to dst determines the color assigned to src
 
         Returns:
         a colored src
         """
-        if not graph.has_edge(src, dst):  # src has no preference about dst
-            if graph.nodes[src]['pref']:  # src has other preferences
-                return f'{Fore.YELLOW}{src}{Style.RESET_ALL}'
-            else:  # src has no preferences
-                return src
+        if not graph.nodes[src]['pref']:  # src has no preferences
+            return src
+        elif not graph.has_edge(src, dst):  # src is indifferent to dst
+            return f'{Fore.YELLOW}{src}{Style.RESET_ALL}'
         elif graph[src][dst]['pref']:  # dst is a green of src
             return f'{Fore.GREEN}{src}{Style.RESET_ALL}'
         else:  # dst is a red of src
             return f'{Fore.RED}{src}{Style.RESET_ALL}'
 
+    # Sort the matching so that duplicate matchings can be visually identified
+    # when printed. Build a colored string for each match in the matching and
+    # return the matching in a print-friendly format.
     matching = sorted([sorted(match) for match in matching])
     to_print = [f'({get_color_string(src, dst)}, {get_color_string(dst, src)})'
                 for src, dst in matching]
@@ -122,11 +129,13 @@ def get_matching(graph: nx.DiGraph) -> [(str, str)]:
     """Builds a matching based on the preferences indicated in graph.
 
     Args:
-    graph: contains nodes and edges indicating input preferences.
+    - graph: contains nodes and edges indicating input preferences.
 
     Returns:
     a feasible matching. if none is found, the returned list is empty.
     """
+    # Make a working copy of the graph with the matching as an attribute. The
+    # matching is currently empty.
     graph = copy.deepcopy(graph)
     graph.graph['matching'] = []
 
@@ -140,12 +149,15 @@ def get_matching(graph: nx.DiGraph) -> [(str, str)]:
         Some candidates may be disqualified as per preferences.
 
         Args:
-        src: the node to be matched
-        canddates: the list of possible matches for src
+        - src: the node to be matched
+        - canddates: the list of possible matches for src
 
         Returns:
         True if a match is found from candidates, False otherwise.
         """
+        # Shuffle candidates to avoid bias and iterate through them. Report
+        # success on finding the first valid match but first remove the matched
+        # nodes from the graph so as to remove them from any further matchings.
         random.shuffle(candidates)
         for dst in candidates:
             match = (src, dst)
@@ -153,49 +165,60 @@ def get_matching(graph: nx.DiGraph) -> [(str, str)]:
                 graph.graph['matching'].append(match)
                 graph.remove_nodes_from(match)
                 return True
+        # Could not find a valid match in candidates. Return failure.
         return False
 
+    # Choose a random node from graph and try to match it with its greens. If
+    # that fails, try to match it with nodes that it is indifferent to. Store
+    # any found match and repeat for another node until all nodes are
+    # matched. If any node cannot be matched, exit with failure.
     while graph.nodes() and (src := random.choice([*graph.nodes()])):
         greens = [n for n in graph.successors(src) if graph[src][n]['pref']]
-        if add_match(src, greens):
-            continue
-        non_neighbors = set(graph.nodes()) - set(graph.neighbors(src)) - {src}
-        if not add_match(src, list(non_neighbors)):
-            return []
+        if not add_match(src, greens):
+            dont_cares = set(graph.nodes()) - set(graph.neighbors(src)) - {src}
+            if not add_match(src, list(dont_cares)):
+                return []
     return graph.graph['matching']
 
 def visualize(graph: nx.DiGraph) -> None:
     '''Visualizes the preferences indicated in graph.'''
-    file_name = "preferences"
-    dot = Digraph()
-    dot.attr('edge', color='darkgreen:red')
-    for src, dst in graph.edges():
+    file_name = "preferences"  # output file name
+    dot = Digraph()  # graph to be visualized
+    dot.attr('edge', color='darkgreen:red')  # edge colors in visualization
+    for src, dst in graph.edges():  # add graph edges to visualization
         if graph[src][dst]['pref']:
             dot.edge(src, dst, color='darkgreen')
         else:
             dot.edge(src, dst, color='red')
-    dot.render(file_name, view=True)
+    dot.render(file_name, view=True)  # save and render visualization
 
 def read_data(csv_filename: str) -> nx.DiGraph:
     """Builds a graph representing the preference data read from file.
 
     Args:
-    csv_filename: name of csv file which contains preference data.
+    - csv_filename: name of csv file which contains preference data.
 
     Returns:
     the graph built from the preference data read from the file.
     """
-    graph = nx.DiGraph()
+    graph = nx.DiGraph()  # graph to store input preferences.
 
-    def add_targets(src: str, greens: [str], reds: [str]):
+    def add_targets(src: str, greens: [str], reds: [str]) -> None:
+        """Adds preferences to the graph.
+
+        Args:
+        - src: the node whose preferences are to be added
+        - greens: contains the green nodes of src
+        - reds: contains the red nodes of src
+        """
+        # Add preferences to graph. Store whether src indicated preferences.
         _ = [graph.add_edge(src, n, pref=True) for n in greens]
         _ = [graph.add_edge(src, n, pref=False) for n in reds]
         if greens or reds:
             graph.nodes[src]['pref'] = True
 
-    # Reading a CSV file, adapted from:
-    # https://realpython.com/python-csv/ and
-    # https://stackoverflow.com/questions/17262256/how-to-read-one-single-line-of-csv-data-in-python
+    # Identify the columns in the file that contain the greens and the
+    # reds. Read CSV rows to add greens and reds to graph.
     with open(csv_filename) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         headers = next(csv_reader)
