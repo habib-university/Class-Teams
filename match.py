@@ -21,7 +21,6 @@ NUM_TRIES: int = 10000
 PROGRESS_X = 0
 
 ############### PROGRESS BAR FUNCTIONS BEGIN
-
 def start_progress(title: str) -> None:
     '''Initializes progress bar internals and and sets the title.'''
     global PROGRESS_X
@@ -59,7 +58,6 @@ def end_progress() -> None:
     sys.stdout.flush()
 ############### PROGRESS BAR FUNCTIONS END
 
-
 def get_score_for_matching(graph: nx.DiGraph, matching: [(str, str)]) -> float:
     """Scores a matching.
 
@@ -70,11 +68,14 @@ def get_score_for_matching(graph: nx.DiGraph, matching: [(str, str)]) -> float:
     Returns:
     the score for matching.
     """
+    # This matching's score is the number of greens included in the matching.
+    # That is, how many nodes are matched with their greens?
     score = sum((1 for src, dst in matching
-                 if graph.has_edge(src, dst) and graph[src][dst]['pref']))
-    score += sum((1 for src, dst in matching
-                  if graph.has_edge(dst, src) and graph[dst][src]['pref']))
+                 if (graph.has_edge(src, dst) and graph[src][dst]['pref'])
+                 or (graph.has_edge(dst, src) and graph[dst][src]['pref'])))
+    # The score is perfect when everyone is matched with one of their greens.
     perfect_score = sum((1 for n in graph.nodes() if graph.nodes[n]['pref']))
+    # Normalize this matching's score w.r.t. the perfect score.
     return score / perfect_score
 
 def get_pretty_string(graph: nx.DiGraph, matching: [(str, str)]) -> str:
@@ -102,14 +103,14 @@ def get_pretty_string(graph: nx.DiGraph, matching: [(str, str)]) -> str:
         Returns:
         a colored src
         """
-        if not graph.has_edge(src, dst):
-            if graph.nodes[src]['pref']:
+        if not graph.has_edge(src, dst):  # src has no preference about dst
+            if graph.nodes[src]['pref']:  # src has other preferences
                 return f'{Fore.YELLOW}{src}{Style.RESET_ALL}'
-            else:
+            else:  # src has no preferences
                 return src
-        elif graph[src][dst]['pref']:
+        elif graph[src][dst]['pref']:  # dst is a green of src
             return f'{Fore.GREEN}{src}{Style.RESET_ALL}'
-        else:
+        else:  # dst is a red of src
             return f'{Fore.RED}{src}{Style.RESET_ALL}'
 
     matching = sorted([sorted(match) for match in matching])
@@ -195,7 +196,7 @@ def read_data(csv_filename: str) -> nx.DiGraph:
     # Reading a CSV file, adapted from:
     # https://realpython.com/python-csv/ and
     # https://stackoverflow.com/questions/17262256/how-to-read-one-single-line-of-csv-data-in-python
-    with open('preferences.csv') as csv_file:
+    with open(csv_filename) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         headers = next(csv_reader)
         headers = list(map(lambda s: s.strip().lower(), headers))
@@ -216,21 +217,21 @@ def read_data(csv_filename: str) -> nx.DiGraph:
 def main():
     '''Computes the best matching from input preferences.'''
     filename = 'preferences.csv'
-    preferences = read_data(filename)
-    visualize(preferences)
-    for src in preferences.nodes():
-        preferences.nodes[src].setdefault('pref', False)
+    graph = read_data(filename)
+    visualize(graph)
+    for src in graph.nodes():
+        graph.nodes[src].setdefault('pref', False)
     high_score: int = -sys.maxsize -1
     best_matching: [(str, str)] = []
     start_progress("progress")
     for _ in range(NUM_TRIES):
         show_progress_bar(_, NUM_TRIES)
-        if (matching := get_matching(preferences)) and \
-           (score := get_score_for_matching(preferences, matching)) > high_score:
+        if (matching := get_matching(graph)) and \
+           (score := get_score_for_matching(graph, matching)) > high_score:
             high_score = score
             best_matching = matching
     end_progress()
-    print(f'{get_pretty_string(preferences, best_matching)}\n{high_score}')
+    print(f'{get_pretty_string(graph, best_matching)}\n{high_score}')
 
 if __name__ == '__main__':
     main()
