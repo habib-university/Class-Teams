@@ -92,7 +92,6 @@ def visualize(G : nx.DiGraph) -> None:
             dot.edge(src,dst, color='darkgreen' )
         else:
             dot.edge(src,dst, color='red' )
-    dot.format = 'png'
     dot.render(file_name, view=True)
             
 def enter_data(G : nx.DiGraph) -> None:
