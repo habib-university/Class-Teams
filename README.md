@@ -63,6 +63,8 @@ progress: [########################################]
 - The second line is a progress bar which updates while the program is still trying to find a better match.
 - The third line shows the highest scoring matching found. This may differ for you.
 - The last line of the output shows how well the matching scored.
+- A visualization like the following will also launch. Note that your visualization may vary depending on your computed matching.
+![visualization of the preference graph](./preferences.png)
 
 ## Limitations
 
