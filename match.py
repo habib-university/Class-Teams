@@ -1,4 +1,4 @@
-'''Computes matching of students based on their preferences.
+'''Computes a matching of students based on their preferences.
 
 Author: Waqar Saleem
 Contact: wsaleem@gmail.com
@@ -175,8 +175,16 @@ def visualize(graph: nx.DiGraph) -> None:
             dot.edge(src, dst, color='red')
     dot.render(file_name, view=True)
 
-def enter_data(graph: nx.DiGraph) -> None:
-    '''Populates the digraph with student preferences.'''
+def read_data(csv_filename: str) -> nx.DiGraph:
+    """Builds a graph representing the preference data read from file.
+
+    Args:
+    csv_filename: name of csv file which contains preference data.
+
+    Returns:
+    the graph built from the preference data read from the file.
+    """
+    graph = nx.DiGraph()
 
     def add_targets(src: str, greens: [str], reds: [str]):
         _ = [graph.add_edge(src, n, pref=True) for n in greens]
@@ -202,11 +210,13 @@ def enter_data(graph: nx.DiGraph) -> None:
             add_targets(row[0], greens, reds)
     print(f'Read preferences of {len(graph.nodes())} students with up to '
           f'{len(green_indexes)} greens and {len(red_indexes)} reds.')
+    return graph
 
 ### WORKS WELL ON ITS OWN. EDIT ONLY IF YOU KNOW WHAT YOU ARE DOING.
 def main():
-    preferences = nx.DiGraph()
-    enter_data(preferences)
+    '''Computes the best matching from input preferences.'''
+    filename = 'preferences.csv'
+    preferences = read_data(filename)
     visualize(preferences)
     for src in preferences.nodes():
         preferences.nodes[src].setdefault('pref', False)
