@@ -24,13 +24,16 @@ NUM_TRIES: int = 10000
 # Progress bar initialization.
 PROGRESS_X = 0
 
-############### PROGRESS BAR FUNCTIONS BEGIN
+# -------------------- PROGRESS BAR FUNCTIONS BEGIN
+
+
 def start_progress(title: str) -> None:
     '''Initializes progress bar internals and and sets the title.'''
     global PROGRESS_X
     sys.stdout.write(title + ": [")
     sys.stdout.flush()
     PROGRESS_X = 0
+
 
 def show_progress_bar(current_score: int, max_score: int) -> None:
     """Updates progress bar with the current progress.
@@ -56,11 +59,13 @@ def show_progress_bar(current_score: int, max_score: int) -> None:
     if number_dec == ".0":
         progress(((current_score/max_score)*100))
 
+
 def end_progress() -> None:
     '''Terminates progress bar.'''
     sys.stdout.write("#" * (40 - PROGRESS_X) + "]\n")
     sys.stdout.flush()
-############### PROGRESS BAR FUNCTIONS END
+# -------------------- PROGRESS BAR FUNCTIONS END
+
 
 def get_score_for_matching(graph: nx.DiGraph, matching: [(str, str)]) -> float:
     """Scores a matching.
@@ -83,6 +88,7 @@ def get_score_for_matching(graph: nx.DiGraph, matching: [(str, str)]) -> float:
     # Normalize this matching's score w.r.t. the perfect score.
     return score / perfect_score
 
+
 def get_pretty_string(graph: nx.DiGraph, matching: [(str, str)]) -> str:
     """Builds and returns a string describing the matching.
 
@@ -103,7 +109,7 @@ def get_pretty_string(graph: nx.DiGraph, matching: [(str, str)]) -> str:
 
         Args:
         - src: the node to be colored
-        - dst: the preference of src to dst determines the color assigned to src
+        - dst: src's preference to dst determines the color to assign to src
 
         Returns:
         a colored src
@@ -125,6 +131,7 @@ def get_pretty_string(graph: nx.DiGraph, matching: [(str, str)]) -> str:
                 for src, dst in matching]
     return ', '.join(to_print)
 
+
 def get_matching(graph: nx.DiGraph) -> [(str, str)]:
     """Builds a matching based on the preferences indicated in graph.
 
@@ -140,7 +147,7 @@ def get_matching(graph: nx.DiGraph) -> [(str, str)]:
     graph.graph['matching'] = []
 
     def is_mismatch(src: str, dst: str) -> bool:
-        '''Is matching str with dst disallowed? That is, is src a red of dst?'''
+        '''Is matching str with dst disallowed? i.e. is src a red of dst?'''
         return graph.has_edge(dst, src) and not graph[dst][src]['pref']
 
     def add_match(src: str, candidates: [str]) -> bool:
@@ -180,6 +187,7 @@ def get_matching(graph: nx.DiGraph) -> [(str, str)]:
                 return []
     return graph.graph['matching']
 
+
 def visualize(graph: nx.DiGraph) -> None:
     '''Visualizes the preferences indicated in graph.'''
     file_name = "preferences"  # output file name
@@ -191,6 +199,7 @@ def visualize(graph: nx.DiGraph) -> None:
         else:
             dot.edge(src, dst, color='red')
     dot.render(file_name, view=True)  # save and render visualization
+
 
 def read_data(csv_filename: str) -> nx.DiGraph:
     """Builds a graph representing the preference data read from file.
@@ -224,7 +233,8 @@ def read_data(csv_filename: str) -> nx.DiGraph:
     with open(csv_filename) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         headers = list(map(lambda s: s.strip().lower(), next(csv_reader)))
-        green_indexes = [i for i, head in enumerate(headers) if "green" in head]
+        green_indexes = [i for i, head in enumerate(
+            headers) if "green" in head]
         red_indexes = [i for i, head in enumerate(headers) if "red" in head]
         for row in csv_reader:
             row = list(map(str.strip, row))
@@ -237,7 +247,9 @@ def read_data(csv_filename: str) -> nx.DiGraph:
           f'{len(green_indexes)} greens and {len(red_indexes)} reds.')
     return graph
 
-### WORKS WELL ON ITS OWN. EDIT ONLY IF YOU KNOW WHAT YOU ARE DOING.
+# WORKS WELL ON ITS OWN. EDIT ONLY IF YOU KNOW WHAT YOU ARE DOING.
+
+
 def main():
     '''Computes the best matching from input preferences.'''
     # Build graph from preferences, and mark the nodes that are
@@ -249,7 +261,7 @@ def main():
     for src in graph.nodes():
         graph.nodes[src].setdefault('pref', False)
     visualize(graph)
-    high_score: int = -sys.maxsize -1
+    high_score: int = -sys.maxsize - 1
     best_matching: [(str, str)] = []
     start_progress("progress")
     for _ in range(NUM_TRIES):
@@ -262,6 +274,7 @@ def main():
     # Output the best (highest scoring) match in a suitable format and its
     # score.
     print(f'{get_pretty_string(graph, best_matching)}\n{high_score}')
+
 
 if __name__ == '__main__':
     main()
