@@ -21,14 +21,9 @@ from graphviz import Digraph
 # Number of random matchings to compute; the highest scoring is chosen.
 NUM_TRIES: int = 10000
 
-# Progress bar initialization.
-PROGRESS_X = 0
-STEPS = 0
-
-############### PROGRESS BAR FUNCTIONS BEGIN
 
 class ProgressBar:
-    def __init__(self, title: str, max_score: int, steps = 10, progress_length = 4) -> None:
+    def __init__(self, title: str, max_score: int, steps: int = 10, progress_length: int = 4) -> None:
         '''
         Initializer for the ProgressBar. Sets the given title, and max_score, and initializes
         current_progess as zero.
