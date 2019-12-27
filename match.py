@@ -23,44 +23,53 @@ NUM_TRIES: int = 10000
 
 # Progress bar initialization.
 PROGRESS_X = 0
+STEPS = 0
 
 ############### PROGRESS BAR FUNCTIONS BEGIN
-def start_progress(title: str) -> None:
-    '''Initializes progress bar internals and and sets the title.'''
-    global PROGRESS_X
-    sys.stdout.write(title + ": [")
-    sys.stdout.flush()
-    PROGRESS_X = 0
 
-def show_progress_bar(current_score: int, max_score: int) -> None:
-    """Updates progress bar with the current progress.
+class ProgressBar:
+    def __init__(self, title: str, max_score: int, steps = 10, progress_length = 4) -> None:
+        '''
+        Initializer for the ProgressBar. Sets the given title, and max_score, and initializes
+        current_progess as zero.
+        steps equals the number of times the progress bar is updated.
+        progress_length equals the number of times '#' is printed when show_progress is called.
+        '''
+        self.title = title
+        self.max_score = max_score
+        self.current_progress = 0
+        self.step_size = max_score/steps
+        self.progress_length = progress_length
 
-    Args:
-    - current_score: the progress so far
-    - max_score: the progress to be reached
-    """
-    def progress(score: int) -> None:
-        """Display progress bar with current progress.
-
-        Args:
-        - score: the progress so far
-        """
-        global PROGRESS_X
-        score = int(score * 40 // 100)
-        sys.stdout.write("#" * (score - PROGRESS_X))
+    def start_progress(self) -> None:
+        '''
+        prints the title on the screen, to mark the start of progress bar.
+        '''
+        sys.stdout.write(self.title + ": [")
         sys.stdout.flush()
-        PROGRESS_X = score
 
-    step_size = max_score/10
-    number_dec = str(current_score/step_size - (current_score//step_size))[1:]
-    if number_dec == ".0":
-        progress(((current_score/max_score)*100))
+    def update_progress(self, current_score: int) -> None:
+        '''
+        updates the progress bar with the current_score.
+        '''
+        if current_score % self.step_size == 0:
+            self.show_progress()
 
-def end_progress() -> None:
-    '''Terminates progress bar.'''
-    sys.stdout.write("#" * (40 - PROGRESS_X) + "]\n")
-    sys.stdout.flush()
-############### PROGRESS BAR FUNCTIONS END
+    def show_progress(self) -> None:
+        '''
+        adds '#' to the progress bar. Progress_length equals the number of times '#' is added.
+        '''
+        self.current_progress += self.progress_length
+        sys.stdout.write("#" * (self.progress_length))
+        sys.stdout.flush()
+
+    def end_progress(self) -> None:
+        '''
+        ends the progress bar after printing any necesarry details.
+        '''
+        sys.stdout.write("#" * int((self.progress_length*(self.max_score/self.step_size))  - self.current_progress) + "]\n")
+        sys.stdout.flush()
+
 
 def get_score_for_matching(graph: nx.DiGraph, matching: [(str, str)]) -> float:
     """Scores a matching.
@@ -251,14 +260,15 @@ def main():
     visualize(graph)
     high_score: int = -sys.maxsize -1
     best_matching: [(str, str)] = []
-    start_progress("progress")
+    progress_bar = ProgressBar("progress", NUM_TRIES)
+    progress_bar.start_progress()
     for _ in range(NUM_TRIES):
-        show_progress_bar(_, NUM_TRIES)
+        progress_bar.update_progress(_)
         if (matching := get_matching(graph)) and \
            (score := get_score_for_matching(graph, matching)) > high_score:
             high_score = score
             best_matching = matching
-    end_progress()
+    progress_bar.end_progress()
     # Output the best (highest scoring) match in a suitable format and its
     # score.
     print(f'{get_pretty_string(graph, best_matching)}\n{high_score}')
