@@ -20,7 +20,7 @@ from graphviz import Digraph
 from ProgressBar import *
 
 # Number of random matchings to compute; the highest scoring is chosen.
-NUM_TRIES: int = 1000000
+NUM_TRIES: int = 100000
 
 
 def get_score_for_matching(graph: nx.DiGraph, matching: [(str, str)]) -> float:
@@ -177,6 +177,7 @@ def read_data(csv_filename: str) -> nx.DiGraph:
         - reds: contains the red nodes of src
         """
         # Add preferences to graph. Store whether src indicated preferences.
+        graph.add_node(src)
         _ = [graph.add_edge(src, n, pref=True) for n in greens]
         _ = [graph.add_edge(src, n, pref=False) for n in reds]
         if greens or reds:
@@ -199,7 +200,7 @@ def read_data(csv_filename: str) -> nx.DiGraph:
                 reds = [r for i in red_indexes if (r := row[i])]
                 add_preferences(src, greens, reds)
     # Print a summary of the information read from the file. Return graph.
-    print(f'Read preferences of {len(graph.nodes())} students with up to '
+    print(f'Read preferences of {len(graph.nodes())} students: {list(graph.nodes())}\n with up to '
           f'{len(green_indexes)} greens and {len(red_indexes)} reds.')
     return graph
 
@@ -234,7 +235,7 @@ def main():
     progress_bar.end_progress()
     # Output the best (highest scoring) match in a suitable format and its
     # score.
-    print(f'{len(best_matching)} best mnatchings with score of {high_score}')
+    print(f'{len(best_matching)} best matchings with score of {high_score}')
     for matching in best_matching:
         print(f'{get_pretty_string(graph, matching)}')
 
