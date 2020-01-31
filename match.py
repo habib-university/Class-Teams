@@ -188,7 +188,7 @@ def read_data(csv_filename: str) -> nx.DiGraph:
     # greens and reds, and add the preferences to graph. When reading, ignore
     # extraneous whitespace that may arise due to bad CSV saving.
     with open(csv_filename) as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter='\t')
+        csv_reader = csv.reader(csv_file, delimiter=',')
         headers = list(map(lambda s: s.strip().lower(), next(csv_reader)))
         green_indexes = [i for i, head in enumerate(
             headers) if "green" in head]
