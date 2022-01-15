@@ -147,6 +147,11 @@ def get_matching(graph: nx.DiGraph) -> [(str, str)]:
 def visualize(graph: nx.DiGraph) -> None:
     '''Visualizes the preferences indicated in graph.'''
     file_name = "preferences"  # output file name
+    # Anonymize graph.
+    aliases = random.sample(range(101, 1000), len(graph.nodes()))
+    mapping = dict(zip(graph.nodes(), map(str, aliases)))
+    graph = nx.relabel.relabel_nodes(graph, mapping, True)
+    # Generate visualization.
     dot = Digraph()  # graph to be visualized
     dot.attr('edge', color='darkgreen:red')  # edge colors in visualization
     for src, dst in graph.edges():  # add graph edges to visualization
@@ -221,6 +226,7 @@ def main():
     high_score: int = -sys.maxsize - 1
     best_matching: {(str, str)} = set()
     progress_bar = ProgressBar("progress", NUM_TRIES)
+    print(f'Making {NUM_TRIES} matching attempts:')
     progress_bar.start_progress()
     for _ in range(NUM_TRIES):
         progress_bar.update_progress(_)
