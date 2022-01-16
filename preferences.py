@@ -1,12 +1,8 @@
-'''Computes a matching of students based on their preferences.
+'''Defines a Preferences class to store submitted student preferences which are used to compute their teams.
 
 Author: Waqar Saleem
 Contact: wsaleem@gmail.com
-Last Edit: 26 Oct, 2019
-
-CSV reading adapted from:
-- https://realpython.com/python-csv/ and
-- https://stackoverflow.com/questions/17262256/how-to-read-one-single-line-of-csv-data-in-python
+Last Edit: 16 Jan, 2022
 '''
 
 import csv
