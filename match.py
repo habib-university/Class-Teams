@@ -10,204 +10,129 @@ CSV reading adapted from:
 '''
 
 import copy
-import csv
 import random
 import sys
-import networkx as nx
 
 from colorama import Fore, Style
-from graphviz import Digraph
 from ProgressBar import *
+from preferences import Preferences
 
 # Number of random matchings to compute; the highest scoring is chosen.
 NUM_TRIES: int = 100000
+DUMMY: str = 'XXX'
 
 
-def get_score_for_matching(graph: nx.DiGraph, matching: [(str, str)]) -> float:
-    """Scores a matching.
+def get_teaming_score(pref: Preferences, teams: [[]]) -> float:
+    """Scores a teaming.
 
-    Args:
-    - graph: contains the nodes and edges to be used to compute the score
-    - matching: the matching to be scored
+    The score is maximum when every team in the teaming consists of people who
+    want to work with each other.
 
-    Returns:
-    the score for matching.
-    """
-    # This matching's score is the number of greens included in the matching.
-    # That is, how many nodes are matched with their greens?
-    score = sum((1 for src, dst in matching
-                 if (graph.has_edge(src, dst) and graph[src][dst]['pref'])))
-    score += sum((1 for src, dst in matching
-                  if (graph.has_edge(dst, src) and graph[dst][src]['pref'])))
-    # The score is perfect when everyone is matched with one of their greens.
-    perfect_score = sum((1 for n in graph.nodes() if graph.nodes[n]['pref']))
-    # Normalize this matching's score w.r.t. the perfect score.
-    return score / perfect_score
-
-
-def get_pretty_string(graph: nx.DiGraph, matching: [(str, str)]) -> str:
-    """Builds and returns a string describing the matching.
-
-    Args:
-    - graph: contains the nodes and edges that indicate input preferences.
-    - matching: the matching for which the string is to be built.
+    Parameters:
+    - pref: preferences of the teamed students.
+    - teams: contains the teams which have to be scored.
 
     Returns:
-    a string description of the matching.
+    The score for matching.
     """
-    def get_color_string(src: str, dst: str) -> str:
-        """Returns a colored src depending on the preference of src to dst.
-
-        src is indifferent: no color
-        src has preferences but dst is not one of them: yellow
-        dst is a green of src: green
-        dst is a red of src: src red
-
-        Args:
-        - src: the node to be colored
-        - dst: the preference of src to dst determines the color assigned to src
-
-        Returns:
-        a colored src
-        """
-        if not graph.nodes[src]['pref']:  # src is indifferent
-            return src
-        elif not graph.has_edge(src, dst):  # src is indifferent to dst
-            return f'{Fore.YELLOW}{src}{Style.RESET_ALL}'
-        elif graph[src][dst]['pref']:  # dst is a green of src
-            return f'{Fore.GREEN}{src}{Style.RESET_ALL}'
-        else:  # dst is a red of src
-            return f'{Fore.RED}{src}{Style.RESET_ALL}'
-
-    # Sort the matching so that duplicate matchings can be visually identified
-    # when printed. Build a colored string for each match in the matching and
-    # return the matching in a print-friendly format.
-    matching = sorted([sorted(match) for match in matching])
-    to_print = [f'({get_color_string(src, dst)}, {get_color_string(dst, src)})'
-                for src, dst in matching]
-    return ', '.join(to_print)
+    team_scores = []
+    n = len(teams[0])
+    for team in teams:
+        actual_score = perfect_score = 0
+        for s in team:
+            if s == DUMMY:
+                continue
+            greens = pref.get_greens(s)
+            if (num_greens := min(n, len(greens))):
+                actual_score += sum((1 for t in team if t in greens and t != DUMMY))
+                perfect_score += num_greens
+        if perfect_score:
+            team_scores.append(actual_score / perfect_score)
+    return sum(team_scores) / len(team_scores)
 
 
-def get_matching(graph: nx.DiGraph) -> [(str, str)]:
-    """Builds a matching based on the preferences indicated in graph.
+def get_pretty_string(pref: Preferences, teams: [[]]) -> str:
+    """Builds and returns a string describing teams made from pref.
 
-    Args:
-    - graph: contains nodes and edges indicating input preferences.
+    Parameters:
+    - pref: preferences of the teamed students.
+    - teams: contains the teams which have to be scored.
 
     Returns:
-    a feasible matching. if none is found, the returned list is empty.
+    a string description of the teams.
     """
-    # Make a working copy of the graph with the matching as an attribute. The
-    # matching is currently empty.
-    graph = copy.deepcopy(graph)
-    graph.graph['matching'] = []
+    strings = []
+    for team in teams:
+        string = []
+        team = set(team)
+        for s in team:
+            if s == DUMMY:
+                string.append(DUMMY)
+                continue
+            greens = set(pref.get_greens(s))
+            if greens:
+                if greens & team:
+                    string.append(f'{Fore.GREEN}{s}{Style.RESET_ALL}')
+                else:
+                    string.append(f'{Fore.YELLOW}{s}{Style.RESET_ALL}')
+            else:
+                string.append(s)
+        strings.append(','.join(string))
+    return '\n'.join(strings)
 
-    def is_mismatch(src: str, dst: str) -> bool:
-        '''Is matching str with dst disallowed? That is, is src a red of dst?'''
-        return graph.has_edge(dst, src) and not graph[dst][src]['pref']
 
-    def add_match(src: str, candidates: [str]) -> bool:
-        """Finds a match for src from candidates and reports the success.
+def get_teams(pref: Preferences, size: int) -> [[str]]:
+    """Partitions all the students whose information is in pref into teams of size.
 
-        Some candidates may be disqualified as per preferences.
+    One of the teams is padded with dummy students, XXX, if there are not enough
+    students. Students are picked in a random order and checked if they can work
+    with each other. Teaming can fail if the remaining students to be teamed
+    cannot work with each other.
 
-        Args:
-        - src: the node to be matched
-        - canddates: the list of possible matches for src
+    Parameters:
+    - pref: contains the students to be teamed and their preferences.
 
-        Returns:
-        True if a match is found from candidates, False otherwise.
-        """
-        # Shuffle candidates to avoid bias and iterate through them. Report
-        # success on finding the first valid match but first remove the matched
-        # nodes from the graph so as to remove them from any further matchings.
-        random.shuffle(candidates)
-        for dst in candidates:
-            match = (src, dst)
-            if not is_mismatch(*match):
-                graph.graph['matching'].append(match)
-                graph.remove_nodes_from(match)
-                return True
-        # Could not find a valid match in candidates. Return failure.
-        return False
+    Returns:
+    The list of teams. The list is empty if teaming fails.
 
-    # Choose a random node from graph and try to match it with its greens. If
-    # that fails, try to match it with nodes that it is indifferent to. Store
-    # any found match and repeat for another node until all nodes are
-    # matched. If any node cannot be matched, exit with failure.
-    while graph.nodes() and (src := random.choice([*graph.nodes()])):
-        greens = [n for n in graph.successors(src) if graph[src][n]['pref']]
-        if not add_match(src, greens):
-            dont_cares = set(graph.nodes()) - set(graph.neighbors(src)) - {src}
-            if not add_match(src, list(dont_cares)):
+    """
+    # Get students to be teamed, randomize their order. Initialize dummy student
+    # to be used to pad small team.
+    students = pref.get_students()
+    random.shuffle(students)
+    # Initialize the teams and the teamed students so far.
+    teams = []
+    teamed = set()
+    # Make as many teams of size as possible.
+    while len(students) >= size:
+        # Initialize empty team and add size students who can be teamed
+        # together.
+        team = []
+        for i in range(size):
+            idx = len(students) - 1
+            while any([not pref.can_team(students[idx], s) for s in team]) and idx >= 0:
+                idx -= 1
+            # Exit with failure if teaming failed.
+            if idx < 0:
                 return []
-    return graph.graph['matching']
+            # Update team, teamed students, and remaining students.
+            team.append(students[idx])
+            teamed.add(students[idx])
+            students.pop(idx)
+        # Save team.
+        teams.append(team)
+    # Exit successfully if all the students have been teamed.
+    if len(students) == 0:
+        return teams
+    # Exit with failure if the remaining students cannot be teamed.
+    for src in students:
+        if any([not pref.can_team(src, s) for s in students]):
+            return []
+    # Add team padded with dummy student, and exit successfully.
+    team = students + ['XXX'] * (size - len(students))
+    teams.append(team)
+    return teams
 
-
-def visualize(graph: nx.DiGraph) -> None:
-    '''Visualizes the preferences indicated in graph.'''
-    file_name = "preferences"  # output file name
-    # Anonymize graph.
-    aliases = random.sample(range(101, 1000), len(graph.nodes()))
-    mapping = dict(zip(graph.nodes(), map(str, aliases)))
-    graph = nx.relabel.relabel_nodes(graph, mapping, True)
-    # Generate visualization.
-    dot = Digraph()  # graph to be visualized
-    dot.attr('edge', color='darkgreen:red')  # edge colors in visualization
-    for src, dst in graph.edges():  # add graph edges to visualization
-        if graph[src][dst]['pref']:
-            dot.edge(src, dst, color='darkgreen')
-        else:
-            dot.edge(src, dst, color='red')
-    dot.render(file_name, view=True)  # save and render visualization
-
-
-def read_data(csv_filename: str) -> nx.DiGraph:
-    """Builds a graph representing the preference data read from file.
-
-    Args:
-    - csv_filename: name of csv file which contains preference data.
-
-    Returns:
-    the graph built from the preference data read from the file.
-    """
-    graph = nx.DiGraph()  # graph to store input preferences.
-
-    def add_preferences(src: str, greens: [str], reds: [str]) -> None:
-        """Adds preferences to the graph.
-
-        Args:
-        - src: the node whose preferences are to be added
-        - greens: contains the green nodes of src
-        - reds: contains the red nodes of src
-        """
-        # Add preferences to graph. Store whether src indicated preferences.
-        graph.add_node(src)
-        _ = [graph.add_edge(src, n, pref=True) for n in greens]
-        _ = [graph.add_edge(src, n, pref=False) for n in reds]
-        if greens or reds:
-            graph.nodes[src]['pref'] = True
-
-    # Read the header row and identify the columns in the file that contain the
-    # greens and the reds. In each remaining row, read the source node, its
-    # greens and reds, and add the preferences to graph. When reading, ignore
-    # extraneous whitespace that may arise due to bad CSV saving.
-    with open(csv_filename) as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter='\t')
-        headers = list(map(lambda s: s.strip().lower(), next(csv_reader)))
-        green_indexes = [i for i, head in enumerate(
-            headers) if "green" in head]
-        red_indexes = [i for i, head in enumerate(headers) if "red" in head]
-        for row in csv_reader:
-            row = list(map(str.strip, row))
-            if (src := row[0]):
-                greens = [g for i in green_indexes if (g := row[i])]
-                reds = [r for i in red_indexes if (r := row[i])]
-                add_preferences(src, greens, reds)
-    # Print a summary of the information read from the file. Return graph.
-    print(f'Read preferences of {len(graph.nodes())} students: {list(graph.nodes())}\n with up to '
-          f'{len(green_indexes)} greens and {len(red_indexes)} reds.')
-    return graph
 
 # WORKS WELL ON ITS OWN. EDIT ONLY IF YOU KNOW WHAT YOU ARE DOING.
 
@@ -219,31 +144,30 @@ def main():
     # the matching with the highest score. Show progress bar as matchings are
     # computed.
     filename = 'preferences.csv'
-    graph = read_data(filename)
-    for src in graph.nodes():
-        graph.nodes[src].setdefault('pref', False)
-    visualize(graph)
+    pref = Preferences(filename)
+    pref.visualize()
     high_score: int = -sys.maxsize - 1
-    best_matching: {(str, str)} = set()
+    best_teams: {(str, str)} = set()
     progress_bar = ProgressBar("progress", NUM_TRIES)
     print(f'Making {NUM_TRIES} matching attempts:')
     progress_bar.start_progress()
     for _ in range(NUM_TRIES):
         progress_bar.update_progress(_)
-        if (matching := get_matching(graph)) and \
-           (score := get_score_for_matching(graph, matching)) >= high_score:
-            if score > high_score:
-                high_score = score
-                best_matching.clear()
-            matching = [tuple(sorted(match)) for match in matching]
-            matching = tuple(sorted(matching))
-            best_matching.add(matching)
+        if (teams := get_teams(pref, 2)):
+            teams = [tuple(sorted(t)) for t in teams]
+            teams = tuple(sorted(teams))
+            if (score := get_teaming_score(pref, teams)) >= high_score:
+                if score > high_score:
+                    high_score = score
+                    best_teams.clear()
+                    best_teams.add(teams)
     progress_bar.end_progress()
     # Output the best (highest scoring) match in a suitable format and its
     # score.
-    print(f'{len(best_matching)} best matchings with score of {high_score}')
-    for matching in best_matching:
-        print(f'{get_pretty_string(graph, matching)}')
+    print(f'{len(best_teams)} best teams with score of {high_score}')
+    for teams in best_teams:
+        print(f'{get_pretty_string(pref, teams)}')
+        # print(teams)
 
 
 if __name__ == '__main__':
