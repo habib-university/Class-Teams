@@ -17,6 +17,7 @@ from preferences import Preferences
 NUM_TRIES: int = 100000
 TEAM_SIZE: int = 3
 INPUT_FILE = 'preferences.csv'
+DO_ANONYMIZE = True
 DUMMY: str = 'XXX'
 
 
@@ -142,7 +143,7 @@ def main():
     # the matching with the highest score. Show progress bar as matchings are
     # computed.
     pref = Preferences(INPUT_FILE)
-    pref.visualize()
+    pref.visualize(DO_ANONYMIZE)
     high_score: int = -sys.maxsize - 1
     best_teams: {(str, str)} = set()
     progress_bar = ProgressBar("progress", NUM_TRIES)
