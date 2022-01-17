@@ -2,7 +2,7 @@
 
 Author: Waqar Saleem
 Contact: wsaleem@gmail.com
-Last Edit:  16 Jan, 2022
+Last Edit:  17 Jan, 2022
 '''
 
 import copy
@@ -15,6 +15,8 @@ from preferences import Preferences
 
 # Number of random matchings to compute; the highest scoring is chosen.
 NUM_TRIES: int = 100000
+TEAM_SIZE: int = 3
+INPUT_FILE = 'preferences.csv'
 DUMMY: str = 'XXX'
 
 
@@ -139,8 +141,7 @@ def main():
     # indifferent. Visualize the graph, and compute NUM_TRIES matchings. Store
     # the matching with the highest score. Show progress bar as matchings are
     # computed.
-    filename = 'preferences.csv'
-    pref = Preferences(filename)
+    pref = Preferences(INPUT_FILE)
     pref.visualize()
     high_score: int = -sys.maxsize - 1
     best_teams: {(str, str)} = set()
@@ -149,7 +150,7 @@ def main():
     progress_bar.start_progress()
     for _ in range(NUM_TRIES):
         progress_bar.update_progress(_)
-        if (teams := get_teams(pref, 2)):
+        if (teams := get_teams(pref, TEAM_SIZE)):
             teams = [tuple(sorted(t)) for t in teams]
             teams = tuple(sorted(teams))
             if (score := get_teaming_score(pref, teams)) >= high_score:
