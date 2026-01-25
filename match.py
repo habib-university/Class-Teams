@@ -1,172 +1,237 @@
-'''Computes teams of students based on their preferences.
+"""Compute student teams based on pairwise preferences.
+
+This script reads student pairing preferences from a tab/comma-separated file,
+constructs a compatibility graph, computes an optimal matching, and provides
+both textual and graphical representations of the resulting teams.
 
 Author: Waqar Saleem
 Contact: wsaleem@gmail.com
-Last Edit:  17 Jan, 2022
-'''
+Last Edit: Jan 25, 2026
+"""
 
-import copy
-import random
-import sys
+import csv
+from typing import Dict, Iterable, Iterator, Set, Tuple, TypeAlias
 
+import networkx as nx
 from colorama import Fore, Style
-from ProgressBar import *
-from preferences import Preferences
+from graphviz import Digraph
+import random
+from pathlib import Path
 
-# Number of random matchings to compute; the highest scoring is chosen.
-NUM_TRIES: int = 100000
-TEAM_SIZE: int = 3
-INPUT_FILE = 'preferences.csv'
-DO_ANONYMIZE = True
-DUMMY: str = 'XXX'
+INPUT_FILE = "preferences.csv"  # tab-separated (TSV)
+DELIMITER = "\t"
+
+Student: TypeAlias = str
+Preferences: TypeAlias = Dict[Student, Dict[Student, bool]]
+Team: TypeAlias = Tuple[Student, Student]
 
 
-def get_teaming_score(pref: Preferences, teams: [[]]) -> float:
-    """Scores a teaming.
+def read_preferences(path: str) -> Preferences:
+    """Read student preferences from a TSV file.
 
-    The score is maximum when every team in the teaming consists of people who
-    want to work with each other.
+    The input file is expected to be tab-separated and structured as follows:
 
-    Parameters:
-    - pref: preferences of the teamed students.
-    - teams: contains the teams which have to be scored.
+    - The first row is a header. Columns containing the substring "green"
+      indicate students the row student wants to work with; columns containing
+      "red" indicate students they do not want to work with.
+    - Each subsequent row represents one student:
+        * column 0: the student identifier (source)
+        * column i: another student identifier (optional or blank)
+
+    Args:
+        path: Path to the TSV file containing student preferences.
 
     Returns:
-    The score for matching.
+        A nested dictionary ``pref`` such that:
+        - ``pref[src][dst] == True`` if ``src`` wants to work with ``dst``.
+        - ``pref[src][dst] == False`` if ``src`` does not want to work with ``dst``.
     """
-    team_scores = []
-    n = len(teams[0])
-    for team in teams:
-        actual_score = perfect_score = 0
-        for s in team:
-            if s == DUMMY:
+    pref: Preferences = {}
+
+    with open(path, newline="") as f:
+        reader = csv.reader(f, delimiter=DELIMITER)
+        header = [h.strip().lower() for h in next(reader)]
+
+        for row in reader:
+            row = [cell.strip() for cell in row]
+            if not row or not (src := row[0]):
                 continue
-            greens = pref.get_greens(s)
-            if (num_greens := min(n, len(greens))):
-                actual_score += sum((1 for t in team if t in greens and t != DUMMY))
-                perfect_score += num_greens
-        if perfect_score:
-            team_scores.append(actual_score / perfect_score)
-    return sum(team_scores) / len(team_scores)
+
+            pref.setdefault(src, {})
+
+            for col_name, cell in zip(header[1:], row[1:]):
+                if not cell:
+                    continue
+
+                # Ensure referenced student exists as a node
+                pref.setdefault(cell, {})
+
+                if "green" in col_name:
+                    pref[src][cell] = True
+                elif "red" in col_name:
+                    pref[src][cell] = False
+
+    return pref
 
 
-def get_pretty_string(pref: Preferences, teams: [[]]) -> str:
-    """Builds and returns a string describing teams made from pref.
+def format_teams(pref: Preferences, teams: Iterable[Team]) -> str:
+    """Format teams as a human-readable, colorized string.
 
-    Parameters:
-    - pref: preferences of the teamed students.
-    - teams: contains the teams which have to be scored.
+    Each team is rendered on its own line. A student name is shown in:
+    - green if they want to work with their partner,
+    - red if they explicitly do not want to work with their partner,
+    - the default terminal color if no preference was stated.
+
+    Args:
+        pref: Preference dictionary mapping students to their preferences.
+        teams: Iterable of 2-tuples representing student teams.
 
     Returns:
-    a string description of the teams.
+        A multi-line string describing the teams.
     """
-    strings = []
-    for team in teams:
-        string = []
-        team = set(team)
-        for s in team:
-            if s == DUMMY:
-                string.append(DUMMY)
+    def fmt(u: Student, v: Student) -> str:
+        return (
+            f"{Fore.GREEN if pref[u][v] else Fore.RED}{u}{Style.RESET_ALL}"
+            if v in pref.get(u, {})
+            else u
+        )
+
+    return "\n".join(f"{fmt(a, b)}, {fmt(b, a)}" for a, b in teams)
+
+
+def build_graph(pref: Preferences) -> nx.Graph:
+    """Build an undirected compatibility graph from preferences.
+
+    An edge is added between two students if neither has expressed a red
+    preference against the other. Edge weights reflect the number of green
+    endpoints:
+
+    - ``0.0``: no green preferences
+    - ``1.0``: one-sided green preference
+    - ``1.5``: two-sided green preference (capped to favor two single-greens
+      over one mutual-green elsewhere)
+
+    Args:
+        pref: Preference dictionary mapping students to their preferences.
+
+    Returns:
+        An undirected NetworkX graph whose nodes are students and whose
+        weighted edges represent compatibility.
+    """
+    G = nx.Graph()
+    students = sorted(pref.keys())
+    G.add_nodes_from(students)
+
+    for i, u in enumerate(students):
+        for v in students[i + 1:]:
+            # Forbid pairing if red in either direction
+            if pref.get(u, {}).get(v) is False:
                 continue
-            greens = set(pref.get_greens(s))
-            if greens:
-                if greens & team:
-                    string.append(f'{Fore.GREEN}{s}{Style.RESET_ALL}')
-                else:
-                    string.append(f'{Fore.YELLOW}{s}{Style.RESET_ALL}')
-            else:
-                string.append(s)
-        strings.append(','.join(string))
-    return '\n'.join(strings)
+            if pref.get(v, {}).get(u) is False:
+                continue
+
+            # Weight = number of green endpoints (capped)
+            w = 0
+            if pref.get(u, {}).get(v):
+                w += 1
+            if pref.get(v, {}).get(u):
+                w += 1
+            w = min(w, 1.5)
+
+            G.add_edge(u, v, weight=w)
+
+    return G
 
 
-def get_teams(pref: Preferences, size: int) -> [[str]]:
-    """Partitions all the students whose information is in pref into teams of size.
+def visualize_preferences(
+        pref: Dict[str, Dict[str, bool]],
+        anonymize: bool = True,
+        engine: str = "fdp",
+        filename: str = "preferences",
+) -> None:
+    """Visualize preferences as a directed graph with colored arrows.
 
-    One of the teams is padded with dummy students, XXX, if there are not enough
-    students. Students are picked in a random order and checked if they can work
-    with each other. Teaming can fail if the remaining students to be teamed
-    cannot work with each other.
+    Each student is represented as a node. Directed edges indicate preferences:
+    - green arrows denote a desire to work together,
+    - red arrows denote an explicit refusal.
 
-    Parameters:
-    - pref: contains the students to be teamed and their preferences.
+    Args:
+        pref: Preference dictionary where ``pref[u][v]`` is ``True`` (green)
+            or ``False`` (red).
+        anonymize: Whether to anonymize student identifiers in the visualization.
+        engine: Graphviz layout engine to use. One of ``"dot"``, ``"neato"``,
+            ``"fdp"``, ``"sfdp"``, ``"circo"``, or ``"twopi"``.
+        filename: Base name of the output file (without extension).
 
     Returns:
-    The list of teams. The list is empty if teaming fails.
-
+        None. The function renders and saves a PNG file and opens it for viewing.
     """
-    # Get students to be teamed, randomize their order. Initialize dummy student
-    # to be used to pad small team.
-    students = pref.get_students()
-    random.shuffle(students)
-    # Initialize the teams and the teamed students so far.
-    teams = []
-    teamed = set()
-    # Make as many teams of size as possible.
-    while len(students) >= size:
-        # Initialize empty team and add size students who can be teamed
-        # together.
-        team = []
-        for i in range(size):
-            idx = len(students) - 1
-            while any([not pref.can_team(students[idx], s) for s in team]) and idx >= 0:
-                idx -= 1
-            # Exit with failure if teaming failed.
-            if idx < 0:
-                return []
-            # Update team, teamed students, and remaining students.
-            team.append(students[idx])
-            teamed.add(students[idx])
-            students.pop(idx)
-        # Save team.
-        teams.append(team)
-    # Exit successfully if all the students have been teamed.
-    if len(students) == 0:
-        return teams
-    # Exit with failure if the remaining students cannot be teamed.
-    for src in students:
-        if any([not pref.can_team(src, s) for s in students]):
-            return []
-    # Add team padded with dummy student, and exit successfully.
-    team = students + ['XXX'] * (size - len(students))
-    teams.append(team)
-    return teams
+    # Build a stable node list
+    nodes = sorted(pref.keys())
+
+    # Create anonymization mapping, if requested
+    if anonymize:
+        labels = {
+            u: f"S{i:02d}"
+            for u, i in zip(nodes, random.sample(range(len(nodes)), k=len(nodes)))
+        }
+        filename += "_anon"
+    else:
+        labels = {u: u for u in nodes}
+
+    # Initialize Graphviz directed graph
+    engine = Digraph(name="Preferences", engine=engine)
+
+    # Global styling parameters
+    engine.attr(
+        overlap="false",
+        splines="true",
+        nodesep="0.35",
+        ranksep="0.6",
+    )
+    engine.attr("node", shape="circle", fontsize="10")
+    engine.attr("edge", arrowsize="0.8", penwidth="1.2")
+
+    # Add nodes explicitly (ensures isolated nodes are shown)
+    for u in nodes:
+        engine.node(labels[u])
+
+    # Add directed edges based on preferences
+    for u, nbrs in pref.items():
+        for v, is_green in nbrs.items():
+            if u == v:
+                continue
+            engine.edge(
+                labels[u],
+                labels[v],
+                color=("darkgreen" if is_green else "red"),
+            )
+
+    # Render output, anchoring to script directory when available
+    try:
+        base_dir = Path(__file__).resolve().parent
+    except NameError:
+        base_dir = Path.cwd()
+
+    engine.render(str(base_dir / filename), format="png", view=True)
 
 
-# WORKS WELL ON ITS OWN. EDIT ONLY IF YOU KNOW WHAT YOU ARE DOING.
+def main() -> None:
+    """Run the full workflow: read preferences, compute teams, and display output."""
+    pref = read_preferences(INPUT_FILE)
+    G = build_graph(pref)
+
+    teams: Set[Team] = nx.max_weight_matching(G, maxcardinality=True)
+    matched = {p for uv in teams for p in uv}
+    unmatched = sorted(set(pref) - matched)
+
+    print(f"From data of {len(pref)} students,\n- made {len(teams)} teams:")
+    print(format_teams(pref, teams))
+    print("- following are unmatched:")
+    print(unmatched)
+
+    visualize_preferences(pref)
 
 
-def main():
-    '''Computes the best matching from input preferences.'''
-    # Build graph from preferences, and mark the nodes that are
-    # indifferent. Visualize the graph, and compute NUM_TRIES matchings. Store
-    # the matching with the highest score. Show progress bar as matchings are
-    # computed.
-    pref = Preferences(INPUT_FILE)
-    pref.visualize(DO_ANONYMIZE)
-    high_score: int = -sys.maxsize - 1
-    best_teams: {(str, str)} = set()
-    progress_bar = ProgressBar("progress", NUM_TRIES)
-    print(f'Making {NUM_TRIES} matching attempts:')
-    progress_bar.start_progress()
-    for _ in range(NUM_TRIES):
-        progress_bar.update_progress(_)
-        if (teams := get_teams(pref, TEAM_SIZE)):
-            teams = [tuple(sorted(t)) for t in teams]
-            teams = tuple(sorted(teams))
-            if (score := get_teaming_score(pref, teams)) >= high_score:
-                if score > high_score:
-                    high_score = score
-                    best_teams.clear()
-                    best_teams.add(teams)
-    progress_bar.end_progress()
-    # Output the best (highest scoring) match in a suitable format and its
-    # score.
-    print(f'{len(best_teams)} best teams with score of {high_score}')
-    for teams in best_teams:
-        print(f'{get_pretty_string(pref, teams)}')
-        # print(teams)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
