@@ -1,87 +1,210 @@
-# Team Selector
+# Student Team Assignment from Preferences
 
-I need to make student teams of 2 in my classes for which I ask students to specify _greens_ and _reds_. Greens are people that the student wants to work with and reds are people that they _do not_ want to work with. This program matches students according to these preferences.
+This repository contains a Python program for forming student teams based on pairwise preferences.
+Students may indicate whom they would like to work with (“green”) and whom they would prefer not to work with (“red”).
+The program computes team assignments that respect all negative constraints while maximizing overall satisfaction.
 
-## How to Use
+In addition to computing teams, the program provides both textual and graphical visualizations of the preference structure.
 
-Enter your data in the file, `preferences.csv`. A sample is provided. The details of the required format are given below.
+---
 
-The first row contains titles. The first title indicates a student and may be left blank. The remaining titles are any number of _green_ and _red_ in any order.
+## Features
 
-Each remaining row contains the preferences of an individual student, the _source_ for that row. The name of the source appears in the first column. Each cell in a column titled _green_ contains the name of a different student that _source_ wants to work with. Each cell in a column titled _red_ contains the name of a different student that _source_ does not want to work with.
+- Reads student preferences from a delimited text file
+- Supports **green** (preferred) and **red** (avoid) preferences
+- Represents preferences as a directed graph
+- Builds an undirected compatibility graph with weighted edges
+- Computes an optimal pairing using **maximum-weight matching**
+- Guarantees that **no red-edge pairs** are formed
+- Produces:
+  - colorized terminal output for team assignments
+  - Graphviz-based visualization of preferences (optionally anonymized)
 
-Different students may have different numbers or greens and reds. Leave cells blank for missing data. The program accounts for all students indicated as a source, a green, or a red. Students who have not been indicated as either of these but still need to be matched should be added in the file as sources with no data for greens or reds.
+---
 
-Make sure to use a unique name for each student and to use the name consistently. Take care to not mistype it as the program currently cannot account for typos.
+## Input File Format
 
-The set of students indicated as sources, greens, and reds __must have an even size__.
+The input file is a delimited text file (TSV by default, though this is configurable).
 
-## The Computed Matching
+### Delimiter (important)
 
-The program _matches_ each student according to their preference. The set of all matches is called a _matching_. The program computes many matchings and outputs the one with the highest _goodness score_ which is between 0 (worst) and 1 (best). The matching score is a measure of the number of students in the matching who are matched with a green. If no matching can be found, the output score is negative.
+Although the default filename is `preferences.csv`, the program currently expects a **tab-separated** file:
 
-Because the programs makes matches of 2, the total number of specified students __must be even__.
+```python
+DELIMITER = "\t"
+```
 
-As it is usually impossible to meet all preferences, a score of 0.6 or above is good enough.
+If your input file is comma-separated instead, you can switch to:
 
-## The Visualization
+```python
+DELIMITER = ","
+```
 
-The program outputs a graph visualizing the preferences.
+No other changes are required.
+
+---
+
+### Header Row
+
+- The first row is a header.
+- Columns containing the substring **`green`** indicate students the row student *wants* to work with.
+- Columns containing the substring **`red`** indicate students the row student *does not want* to work with.
+
+Column names beyond this convention are ignored.
+
+---
+
+### Data Rows
+
+Each subsequent row corresponds to one student:
+
+- **Column 0**: the student identifier
+- **Column i**: another student identifier (optional / may be blank)
+
+Blank cells are ignored.
+
+---
+
+### Example Input (TSV)
+
+```text
+student	green_1	green_2	red_1
+Alice	Bob	Charlie	
+Bob		Alice	David
+Charlie	Alice		
+David			Bob
+```
+
+Interpretation:
+- Alice wants to work with Bob and Charlie
+- Bob wants to work with Alice and does not want to work with David
+- David does not want to work with Bob
+
+---
+
+## How Teaming Works
+
+1. **Preferences are parsed** into a nested dictionary:
+
+   ```python
+   pref[A][B] = True   # A wants to work with B
+   pref[A][B] = False  # A does not want to work with B
+   ```
+
+2. An **undirected compatibility graph** is constructed:
+   - No edge is added if either student has a red preference against the other.
+   - Edge weights reflect positive preferences:
+     - `0.0` – no green preferences
+     - `1.0` – one-sided green preference
+     - `1.5` – mutual green preference (intentionally capped)
+
+3. A **maximum-weight matching** is computed using NetworkX:
+   - Primary objective: maximize total satisfaction
+   - Secondary objective: maximize the number of pairs
+     (`maxcardinality=True`)
+
+4. If the number of students is odd, one student may remain unmatched.
+   Unmatched students are reported explicitly.
+
+---
+
+## Output
+
+### Terminal Output
+
+- Each team is printed on its own line.
+- Student names are colorized (in supported terminals):
+  - **Green**: student wants to work with their partner
+  - **Red**: student explicitly does not want to work with their partner
+  - Default color: no stated preference
+
+---
+
+### Graphical Visualization
+
+The program generates a **directed preference graph** using Graphviz:
+
+- Nodes represent students
+- Green arrows represent “wants to work with”
+- Red arrows represent “does not want to work with”
+- Optional anonymization replaces names with `S01`, `S02`, …
+
+The visualization is saved as a PNG file and automatically opened.
+
+---
 
 ## Requirements
 
-To run the program,
+- Python 3.10+
+- `networkx`
+- `graphviz` (system installation)
+- Python Graphviz bindings:
+  - `graphviz`
+- Optional (for colored terminal output):
+  - `colorama`
 
-- you need at least python 3.8 because of the use of _assignment expressions_. Update your python from https://www.python.org.
-- you need the `colorama` package because of its use for colored output. Run `pip install colorama` or `pip3 install colorama`, depending on your platform, if it is not installed.
-- you need the `graphviz` package because of its use for visualization. Run `pip install graphviz` or `pip3 install graphviz`, depending on your platform, if it is not installed.
+Install Python dependencies:
 
-## How it Works
-
-The problem is modeled as a directed graph with every student as a node, green edges from a student to their greens and red edges from a student to their reds. The program tries to partition the vertices into pairs or _matches_ such that no match contains a red and as many greens are included in the matches as possible.
-
-The program builds a matching by iteratively picking a random node as the _source_ and building a match with one of its greens such that _source_ is not a red of the green. If a match cannot be found among the greens, nodes not connected to _source_ are searched for matches. If still no match is found, the matching fails. Once a match is found, _source_ and its match are added to the matching and removed from the graph.
-
-As random choices are involved, the above process is repeated several times to maximize the likelihood of a high scoring pairing. The highest scoring pairings (there may be multiple) are saved.
-
-### Visualization
-
-The program saves and launches a visualization of the graph. The generated file name is `preferences.pdf`.
-
-### Sample Output
-
-Provided that the requriemetns are met, the given program shoud run with the given `preferences.csv` file as-is. The produced output will be of the form
-```
->>> main()
-Read preferences of 10 students with up to 3 greens and 1 reds.
-progress: [########################################]
-(P, T), (Q, X), (R, V), (S, W), (U, Z)
-0.875
+```bash
+pip install networkx graphviz colorama
 ```
 
-- The first line of the output contains summary information of the data read from `preferences.csv`.
-- The second line is a progress bar which updates while the program is still trying to find a better match.
-- The third line shows the highest scoring matching found. This may differ for you.
-- The last line of the output shows how well the matching scored.
-- A visualization like the following will also launch. Note that your visualization may vary depending on your computed matching.
-![visualization of the preference graph](./preferences.png)
+Install Graphviz system-wide:
 
-## Limitations
+```bash
+# macOS (Homebrew)
+brew install graphviz
 
-- It may be possible for a set of preferences to not lead to any possible matching. That has to be studied.
-- I have not considered how this works for an odd number of students. The program could be run for an even number of students, leaving one student out, and that remaining student could be inserted manually into a computed pair.
+# Ubuntu / Debian
+sudo apt install graphviz
+```
 
-## Extensions
+---
 
-This is probably a variant of the _vertex cover_ problem. If so, a more efficient and theoretically sound solution may exist.
+## Running the Program
 
-## Bugs
+```bash
+python team_builder.py
+```
 
-The program fails or crashes? You have found an error? You want to know more? This documentation sucks?
+By default, the program:
+- reads `preferences.csv`
+- prints team assignments to the terminal
+- generates and opens a preference visualization
 
-For the above or any other issues, please report
-- to <wsaleem@gmail.com>, or
-- to <waqar.saleem@sse.habib.edu.pk>, or
-- by seeing me in C-103, or
-- by calling me at 5223, or
-- by fixing it yourself and submitting a Pull Request :)
+---
+
+## Customization
+
+Common adjustments include:
+
+- Changing the input delimiter (`DELIMITER`)
+- Renaming the input file (`INPUT_FILE`)
+- Choosing a different Graphviz layout engine:
+  - `dot`, `neato`, `fdp`, `sfdp`, `circo`, `twopi`
+- Enabling or disabling anonymization in the visualization
+- Modifying the edge-weight scheme
+
+---
+
+## Design Notes
+
+- Red preferences are treated as **hard constraints**
+- Green preferences contribute to edge weights
+- Mutual green preferences are intentionally capped to prevent a single mutual pair from dominating multiple one-sided satisfactions elsewhere
+- Output paths are anchored to the script directory when run as a file, and fall back to the current working directory in interactive sessions (e.g., Emacs inferior Python)
+
+---
+
+## License
+
+This project is intended for educational and academic use.
+No license is specified; add one if you plan to distribute or reuse the code broadly.
+
+---
+
+## Author
+
+**Waqar Saleem**  
+Associate Professor of Computer Science  
+Contact: wsaleem@gmail.com
