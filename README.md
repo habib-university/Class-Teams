@@ -26,21 +26,20 @@ In addition to computing teams, the program provides both textual and graphical 
 
 The input file is a delimited text file (TSV by default, though this is configurable).
 
-### Delimiter (important)
+### Delimiter (configured in the script)
 
-Although the default filename is `preferences.csv`, the program currently expects a **tab-separated** file:
+The program does **not** infer the delimiter from the input file itself. Instead, the delimiter is explicitly defined in the script:
 
 ```python
 DELIMITER = "\t"
 ```
+By default, the file is expected to be **tab-separated** (TSV) for easy copying from a spreadsheet, but the default filename is preferences.csv.
 
-If your input file is comma-separated instead, you can switch to:
-
+If your input file is comma-separated, simply change the delimiter in the script to:
 ```python
 DELIMITER = ","
 ```
-
-No other changes are required.
+No changes to the input file format or headers are otherwise required.
 
 ---
 
@@ -115,7 +114,7 @@ Interpretation:
 - Each team is printed on its own line.
 - Student names are colorized (in supported terminals):
   - **Green**: student wants to work with their partner
-  - **Red**: student explicitly does not want to work with their partner
+  - **Red**: student explicitly does not want to work with their partner (should not appear)
   - Default color: no stated preference
 
 ---
